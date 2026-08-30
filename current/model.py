@@ -10,6 +10,10 @@ from matricies import (
 
 
 class meshC:
+    """
+    Contains the vao, vbo, verts and shaders for an object (also uv/textures once i get there)
+    """
+    
     # this needs a vao, vbo, and verticies element, 
     # in addition to regenerating such after a .shader property is modified.
     def __init__(self):
@@ -18,7 +22,10 @@ class meshC:
       
 
 
-class modelContainer:
+class renderObject:
+    """
+    Contains the mesh data for an object, as well as its associated transformations
+    """
     @property
     def modelMatrix(self):
         return (self.positionMatrix @ self.rotationMatrix) @ self.scaleMatrix.mtx
@@ -53,6 +60,9 @@ class modelContainer:
         self.rotationMatrix = rotationMatrix
       
     def setScale(self, x:float|None = None, y:float|None = None, z:float|None = None):
+        """
+        Set the models exact scale in (x,y,z) directions
+        """
         if x != None:
             self.scaleMatrix.x = x
         if y != None:
@@ -61,11 +71,17 @@ class modelContainer:
             self.scaleMatrix.z = z
             
     def incrementScale(self, x:float = 0, y:float = 0, z:float = 0):
+        """
+        Increase/Decrease the models current scale in (x,y,z) directions
+        """
         self.scaleMatrix.x = x + self.scaleMatrix.x
         self.scaleMatrix.y = y + self.scaleMatrix.y
         self.scaleMatrix.z = z + self.scaleMatrix.z
     
     def setRadians(self, pitch: float|None = None, yaw:float|None = None, roll:float|None = None):
+        """
+        Set the models exact rotation in (p,y,r) radians
+        """
         if pitch != None:
             self.rotationMatrix.pitch.radians = pitch
         if yaw != None:
@@ -73,13 +89,20 @@ class modelContainer:
         if roll != None:
             self.rotationMatrix.roll.radians = roll
             
-    def rotateRadians(self, pitch: float=0, yaw:float=0, roll:float=0):
-    
+    def incrementRadians(self, pitch: float=0, yaw:float=0, roll:float=0):
+        """
+        Increase/Decrease the models current rotation in (p,y,r) radians
+        """
+        
         self.rotationMatrix.pitch.radians = (pitch + self.rotationMatrix.pitch.radians) % (2*math.pi)
         self.rotationMatrix.yaw.radians = (yaw + self.rotationMatrix.yaw.radians) % (2*math.pi)
         self.rotationMatrix.roll.radians = (roll + self.rotationMatrix.roll.radians) % (2*math.pi)
     
     def setPosition(self, x:float|None = None, y:float|None = None, z:float|None = None):
+        """
+        Set the models exact position in world (x,y,z)
+        """
+        # currently in -1 to 1 for all axis
         if x != None:
             self.positionMatrix.x = x
         if y != None:
@@ -88,7 +111,9 @@ class modelContainer:
             self.positionMatrix.z = z
             
     def incrementPosition(self, x:float = 0, y:float = 0, z:float = 0 ):
-        
+        """
+        Increase/Decrease the models current position in world (x,y,z)
+        """
         self.positionMatrix.x = x + self.positionMatrix.x
         self.positionMatrix.y = y + self.positionMatrix.y
         self.positionMatrix.z = z + self.positionMatrix.z
