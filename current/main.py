@@ -11,8 +11,12 @@ from moderngl_window.resources import (programs,textures,scenes,data)
 from moderngl_window.meta import (TextureDescription,ProgramDescription,SceneDescription,DataDescription)
 from moderngl_window.scene import (KeyboardCamera, mesh)
 
+
 class matrix:
-    "General class for a 4x4 matrix. Inherits some numpy array methods. Row/Column vectors are not mutable"
+    """
+    General class for a mutable 4x4 matrix. 
+    Inherits .shape, .transpose, .invert and .copy from numpy 
+    """
     def __init__(self, name: str):
         self.name = str(name)
     def __getitem__(self, key):
@@ -23,6 +27,9 @@ class matrix:
         return self.mtx.shape
     @property
     def byteForm(self):
+        """
+        Returns the bytes of the current matrix in Column Vector form
+        """
         return self.mtx.astype("f4").tobytes(order="F")
     @property
     def c_vec1(self):
@@ -59,12 +66,21 @@ class matrix:
         return np.linalg.inv(self.mtx)
     
     def __matmul__(self, other) -> NDArray:
+        """
+        This represents the @ operator added by numpy
+        Extended to function with the mtx property
+        """
         if isinstance(other, matrix):
             return self.mtx @ other.mtx
 
         return self.mtx @ other
     
     def setterdef(self, value):
+        """
+        General row/column vector setter. 
+        Takes a input and coverts to asarray then checks if input is of (4,) size
+        
+        """
         value = np.asarray(value)
         if value.shape != (4,):
             raise ValueError("vec must contain 4 values")
@@ -72,6 +88,10 @@ class matrix:
 
     
     def generic(self,row1=[1.0,0,0,0], row2=[0,1.0,0,0], row3=[0,0,1.0,0], row4=[0,0,0,1.0]):
+        """
+        By default creates a 4x4 identity matrix
+        Returns 4x4 with any modified rows and sets it as the .mtx
+        """
         r1 = np.array([row1[0], row1[1], row1[2], row1[3]])
         r2 = np.array([row2[0], row2[1], row2[2], row2[3]])
         r3 = np.array([row3[0], row3[1], row3[2], row3[3]])
@@ -79,7 +99,10 @@ class matrix:
         self.mtx = np.array([r1,r2,r3,r4]) 
          
 class mutMatrix(matrix):
-    "General class for a 4x4 matrix. Inherits some numpy array methods. Row/Column vectors are mutable"
+    """
+    General class for a mutable 4x4 matrix. 
+    Inherits .shape, .transpose, .invert and .copy from numpy 
+    """
   
     @matrix.r_vec1.setter
     def r_vec1(self, value) -> None:
@@ -107,6 +130,7 @@ class mutMatrix(matrix):
         self.mtx[:,3] = self.setterdef(value)
 
 class scalingMtx(matrix):
+    "Matrix for scaling x,y,z coordinates"
     
     @property
     def scale(self) -> tuple[float,float,float]:
@@ -140,6 +164,7 @@ class scalingMtx(matrix):
             row3=  [0,0,z,0])
         
 class positionMtx(matrix):
+    "Matrix for translating x,y,z coordinates"
     @property
     def position(self) -> tuple[float, float, float]:
         return (self.r_vec1[3], self.r_vec2[3], self.r_vec3[3])
@@ -172,12 +197,14 @@ class positionMtx(matrix):
         row3 =[0,0,1.0,z])
         
 class pitchMtx(matrix):
+    "Matrix for rotation around the X axis"
     @property
     def radians(self) -> float:
-        return math.acos(self.r_vec1[0])
+        return self.__radians 
     @radians.setter
     def radians(self, radians: float):
-        s,c = math.sin(radians),math.cos(radians)
+        self.__radians = radians
+        s,c = math.sin(radians), math.cos(radians)
         self.mtx[0,:] = [ c,0,s,0] 
         self.mtx[2,:] = [-s,0,c,0]  
          
@@ -186,12 +213,15 @@ class pitchMtx(matrix):
         self.radians = radians
         
 class yawMtx(matrix):
+    "Matrix for rotation around the Y axis"
     @property
     def radians(self) -> float:
-        return math.acos(self.r_vec2[1])
+        return self.__radians 
     @radians.setter
     def radians(self, radians: float):
-        s,c = math.sin(radians),math.cos(radians)
+        self.__radians = radians
+        s,c = math.sin(radians), math.cos(radians)
+        
         self.mtx[1,:] = [0,c,-s,0] 
         self.mtx[2,:] = [0,s, c,0] 
     def __init__(self, radians: float):
@@ -199,65 +229,60 @@ class yawMtx(matrix):
         self.radians = radians
 
 class rollMtx(matrix):
+    "Matrix for rotation around the Z axis"
     @property
     def radians(self) -> float:
-        return math.acos(self.r_vec1[0]) 
+        return self.__radians 
     @radians.setter
     def radians(self, radians: float):
-        s = math.sin(radians)
-        c = math.cos(radians)
+        self.__radians = radians
+        s,c = math.sin(radians), math.cos(radians)
+        
         self.mtx[0,:] = [c,-s,0,0] 
         self.mtx[1,:] = [s, c,0,0]  
         
     def __init__(self, radians: float):
         self.generic()
-        self.radians = radians
+        self.radians = radians 
          
 class rotationMtx(matrix):
+    "Matrix for rotation around the X(Pitch), Y(Yaw), and Z(Roll) axis."
     @property 
     def mtx(self) -> NDArray:
-       return self.pitch.mtx @ self.yaw.mtx @ self.roll.mtx
-        
-        
+        """
+        The numpy array representing the matrix.
+        This computes pitch * yaw * roll then returns the result. 
+        """
+        return self.pitch.mtx @ self.yaw.mtx @ self.roll.mtx
+ 
     @property
     def radians(self) -> tuple[float,float,float]:
         return (self.pitch.radians,self.yaw.radians,self.roll.radians)
-    @radians.setter
-    def radians(self, pitch: float|None = None, yaw:float|None = None, roll:float|None = None):
+
+    def __init__(self, pitchMatrix:pitchMtx, yawMatrix:yawMtx, rollMatrix:rollMtx):
+        
+        self.pitch = pitchMatrix
+        self.yaw = yawMatrix
+        self.roll = rollMatrix
+        
+    def setRadians(self, pitch: float|None = None, yaw:float|None = None, roll:float|None = None):
         if pitch != None:
             self.pitch.radians = pitch
         if yaw != None:
             self.yaw.radians = yaw
         if roll != None:
             self.roll.radians = roll
+            
+    def rotateRadians(self, pitch: float=0, yaw:float=0, roll:float=0):
+    
+        self.pitch.radians = (pitch + self.pitch.radians) % (2*math.pi)
+       
+        self.yaw.radians = (yaw + self.yaw.radians) % (2*math.pi)
         
-    def __init__(self, pitchMatrix: pitchMtx, yawMatrix:   yawMtx, rollMatrix:  rollMtx):
-        self.pitch = pitchMatrix
-        self.yaw = yawMatrix
-        self.roll = rollMatrix
+        self.roll.radians = (roll + self.roll.radians) % (2*math.pi)
         
-        
-p = pitchMtx(math.pi)
-y = yawMtx(0)
-r = rollMtx(0)
-rot = rotationMtx(p,y,r)
 
-print("rows")
-print(rot.r_vec1)
-print(rot.r_vec2)
-print(rot.r_vec3)
-print(rot.r_vec4)
-print("columns")
-print(rot.c_vec1)
-print(rot.c_vec2)
-print(rot.c_vec3)
-print(rot.c_vec4)
-print("inverse")
-print(rot.inverse())
-print("transpose")
-print(rot.transpose())
-print("shape")
-print(rot.shape)
+
 
 
 
@@ -270,19 +295,7 @@ class model:
     def getWorld(self):
         #self.worldCenter =
         pass
-    def scale(self, x, y, z):
-        
-        pass
-    def translate(self, x, y, z):
-        pass
-    def recenter(self, x, y, z):
-        pass
-    def yawRotate(self, deg):
-        pass
-    def pitchRotate(self, deg):
-        pass
-    def rollRotate(self, deg):
-        pass
+
     
             
         
@@ -319,7 +332,8 @@ class quad():
 class Window(mgl_w.WindowConfig):
     @property
     def mainMatrix(self):
-        return self.pos @ self.rotation
+        temp = self.pos @ self.rotation
+        return  temp @ self.scale.mtx
     
     gl_version = (3, 3)
     window_size = (700, 700)
@@ -341,38 +355,27 @@ class Window(mgl_w.WindowConfig):
             far=1000,  
         )
         
-        
-        
-        
-        
-        
-        
-        
         self.actionDict = {
-            self.wnd.keys.U: "U",
-            self.wnd.keys.I: "U",
-            self.wnd.keys.O: "U",
-            self.wnd.keys.W: "U",
-            self.wnd.keys.A: "U",
-            self.wnd.keys.S: "U",
-            self.wnd.keys.D: "U",
-            self.wnd.keys.DOWN: "U",
-            self.wnd.keys.UP: "U",
-            self.wnd.keys.RIGHT: "U",
-            self.wnd.keys.LEFT: "U",
-            self.wnd.keys.LEFT_SHIFT: "U",
-            self.wnd.keys.SPACE: "U"
+            self.wnd.keys.U: self.rotateX,
+            self.wnd.keys.I: self.rotateY,
+            self.wnd.keys.O: self.rotateZ,
+            self.wnd.keys.W: self.moveZb,
+            self.wnd.keys.A: self.moveXl,
+            self.wnd.keys.S: self.moveZf,
+            self.wnd.keys.D: self.moveXr,
+            self.wnd.keys.LEFT_SHIFT: self.moveYd,
+            self.wnd.keys.SPACE: self.moveYp
             }
         
         resources.register_program_dir(Path.cwd() / "resources" /  "programs")
         resources.register_data_dir(Path.cwd() / "resources" /  "data")
         resources.register_texture_dir(Path.cwd() / "resources" /  "textures")
-
+       
 
         self.sProgram = self.importProgram("exampleProgram","exampleVertex.glsl","exampleFragment.glsl")
         
         self.screen = quad(
-            [-1, 1, 0],
+            [-1, 1, 0,],
             [-1, -1, 0],
             [1, -1, 0]
             )
@@ -382,66 +385,48 @@ class Window(mgl_w.WindowConfig):
             [1, -1, 0]
             )
 
+        highVerts = self.myquad.triHigh[:3].T
+        lowVerts = self.myquad.triLow[:3].T
+        
+        self.worldVert = np.vstack((highVerts, lowVerts))
+        self.screenVertices = np.asarray(self.worldVert)
+        self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
+        self.vao = self.ctx.simple_vertex_array(self.sProgram, self.vbo, 'in_vert')
+        
         self.pitchX = pitchMtx(0)
         self.yawY = yawMtx(0)
         self.rollZ = rollMtx(0)
         self.rotation = rotationMtx(self.pitchX,self.yawY,self.rollZ)
-        
         self.pos = positionMtx(0,0,0)
-
-        self.scale = scalingMtx(1,1,1)
-        self.transform()
-        self.screenVertices = np.asarray(self.worldVert)  
-        self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
-        self.vao = self.ctx.simple_vertex_array(self.sProgram, self.vbo, 'in_vert')
-        self.mousePos = (0,0) 
-        self.ctx.screen.use()
-        self.mouseNum = 0
+        self.scale = scalingMtx(0.5,0.5,0.5)
 
     def on_render(self, time: float, frametime: float):
-        self.transform()
-        self.screenVertices = np.asarray(self.worldVert)
-        self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
-        self.vao = self.ctx.simple_vertex_array(self.sProgram, self.vbo, 'in_vert')
+        self.rotateX(p=math.pi/1024)
+        self.rotateY(y=math.pi/1024)
+        
+
+        self.sProgram["modelMat"].write(self.mainMatrix.transpose().astype('f4').tobytes())
+        self.sProgram["cameraMat"].write(self.camera.matrix)
+        self.sProgram["projectionMat"].write(self.camera.projection.tobytes())
+        self.ctx.program
         self.ctx.screen.use()
-        self.mouseNum = 0
+        
+    
         self.ctx.screen.clear(0.0, 0.0, 0.0, 1.0)
         self.vao.render(mgl.TRIANGLES)
+        
+        
         
     def on_mouse_position_event(self, x, y, dx, dy):
         self.mousePos = (x,y)
 
     def on_key_event(self, key, action, modifiers):
         amspecial = False
+        
         if action == self.wnd.keys.ACTION_PRESS:
-            if key == self.wnd.keys.X:
-                self.rotate(pitchRadians=math.pi/32)
-            elif key == self.wnd.keys.Y:
-                self.rotate(yawRadians=math.pi/32)
-            elif key == self.wnd.keys.Z:
-                self.rotate(rollRadians=math.pi/32)
-            elif key == self.wnd.keys.DOWN:
-                self.move(z=-0.1)
-                amspecial = True
-            elif key == self.wnd.keys.UP:
-                self.move(z=0.1)
-                amspecial = True
-            elif key == self.wnd.keys.RIGHT:
-                self.move(x=0.1)
-                amspecial = True
-            elif key == self.wnd.keys.LEFT:
-                self.move(x=-0.1)
-                amspecial = True
-            elif key == self.wnd.keys.SPACE:
-                self.move(y=0.1)
-            elif key == self.wnd.keys.LEFT_CTRL:
-                self.move(y=-0.1)
-
-            
-
-
-        
-        
+            function = self.actionDict.get(key)
+            if function != None:
+                function()
         return super().on_key_event(key, action, modifiers)
 
     def importProgram(self, programFolder:str, vertexProgram:str | None=None, fragmentProgram:str | None=None , computeProgram:str | None=None):
@@ -474,16 +459,27 @@ class Window(mgl_w.WindowConfig):
         self.pos.x = self.pos.x + x
         self.pos.y = self.pos.y + y
         self.pos.z = self.pos.z + z
-    
-    def rotate(self, pitchRadians: float=0, yawRadians: float=0, rollRadians: float=0):
-        self.rotation.pitch.radians = pitchRadians + self.rotation.pitch.radians
-        self.rotation.yaw.radians += yawRadians 
-        self.rotation.roll.radians += rollRadians
-    
-    def transform(self):
-        highVerts = (self.mainMatrix @ self.myquad.triHigh)[:3].T
-        lowVerts = (self.mainMatrix @ self.myquad.triLow)[:3].T
+        
+    def moveYp(self, yi:float=0.1):
+        self.move(y=yi)
+    def moveYd(self, yi:float=0.1):
+        self.move(y=-yi)
+    def moveXl(self, xi:float=0.1):
+        self.move(x=-xi)
+    def moveXr(self, xi:float=0.1):
+        self.move(x=xi)
+    def moveZf(self, zi:float=0.1):
+        self.move(z=zi)
+    def moveZb(self, zi:float=0.1):
+        self.move(z=-zi)
 
-        self.worldVert = np.vstack((highVerts, lowVerts))
+    def rotateX(self,p=math.pi/64):
+        self.rotation.rotateRadians(pitch=p)
+    def rotateY(self,y=math.pi/64):
+        self.rotation.rotateRadians(yaw=y)
+    def rotateZ(self,r=math.pi/64):
+        self.rotation.rotateRadians(roll=r)
+    
+    
 
 Window.run()

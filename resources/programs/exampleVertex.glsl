@@ -5,10 +5,16 @@
 
 in vec3 in_vert;
 
+uniform mat4 modelMat; 
+uniform mat4 cameraMat; 
+uniform mat4 projectionMat; 
+
+vec4 transVert = vec4(in_vert, 1);
 
 void main()
 {
-    gl_Position = vec4(in_vert, 1.0);
+    gl_Position = projectionMat * cameraMat * modelMat * transVert;
 }
+
 
 #endif
