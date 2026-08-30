@@ -1,10 +1,14 @@
-
-import numpy as np
 import math
+import numpy as np
 from numpy.typing import NDArray
 
+
+
 class matrix:
-    "General class for a 4x4 matrix. Inherits some numpy array methods. Row/Column vectors are not mutable"
+    """
+    General class for a mutable 4x4 matrix. 
+    Inherits .shape, .transpose, .invert and .copy from numpy 
+    """
     def __init__(self, name: str):
         self.name = str(name)
     def __getitem__(self, key):
@@ -15,7 +19,10 @@ class matrix:
         return self.mtx.shape
     @property
     def byteForm(self):
-        return self.mtx.astype("f4").tobytes(order="F")
+        """
+        Returns the bytes of the current matrix in Column Vector form
+        """
+        return self.mtx.transpose().astype("f4").tobytes()
     @property
     def c_vec1(self):
         return self.mtx[:,0].copy()
@@ -51,12 +58,21 @@ class matrix:
         return np.linalg.inv(self.mtx)
     
     def __matmul__(self, other) -> NDArray:
+        """
+        This represents the @ operator added by numpy
+        Extended to function with the mtx property
+        """
         if isinstance(other, matrix):
             return self.mtx @ other.mtx
 
         return self.mtx @ other
     
     def setterdef(self, value):
+        """
+        General row/column vector setter. 
+        Takes a input and coverts to asarray then checks if input is of (4,) size
+        
+        """
         value = np.asarray(value)
         if value.shape != (4,):
             raise ValueError("vec must contain 4 values")
@@ -64,6 +80,10 @@ class matrix:
 
     
     def generic(self,row1=[1.0,0,0,0], row2=[0,1.0,0,0], row3=[0,0,1.0,0], row4=[0,0,0,1.0]):
+        """
+        By default creates a 4x4 identity matrix
+        Returns 4x4 with any modified rows and sets it as the .mtx
+        """
         r1 = np.array([row1[0], row1[1], row1[2], row1[3]])
         r2 = np.array([row2[0], row2[1], row2[2], row2[3]])
         r3 = np.array([row3[0], row3[1], row3[2], row3[3]])
@@ -71,7 +91,10 @@ class matrix:
         self.mtx = np.array([r1,r2,r3,r4]) 
          
 class mutMatrix(matrix):
-    "General class for a 4x4 matrix. Inherits some numpy array methods. Row/Column vectors are mutable"
+    """
+    General class for a mutable 4x4 matrix. 
+    Inherits .shape, .transpose, .invert and .copy from numpy 
+    """
   
     @matrix.r_vec1.setter
     def r_vec1(self, value) -> None:
@@ -97,8 +120,9 @@ class mutMatrix(matrix):
     @matrix.c_vec4.setter
     def c_vec4(self, value) -> None:
         self.mtx[:,3] = self.setterdef(value)
-    
+
 class scalingMtx(matrix):
+    "Matrix for scaling x,y,z coordinates"
     
     @property
     def scale(self) -> tuple[float,float,float]:
@@ -106,6 +130,7 @@ class scalingMtx(matrix):
 
     @property
     def x(self) -> float:
+        """The x axis scale. Is mutable"""
         return self.mtx[0,0]
     @x.setter
     def x(self, value: float):
@@ -113,6 +138,7 @@ class scalingMtx(matrix):
 
     @property
     def y(self) -> float:
+        """The y axis scale. Is mutable"""
         return self.mtx[1,1]
     @y.setter
     def y(self, value: float):
@@ -120,6 +146,7 @@ class scalingMtx(matrix):
 
     @property
     def z(self) -> float:
+        """The z axis scale. Is mutable"""
         return self.mtx[2,2]
     @z.setter
     def z(self, value: float):
@@ -132,6 +159,7 @@ class scalingMtx(matrix):
             row3=  [0,0,z,0])
         
 class positionMtx(matrix):
+    "Matrix for translating x,y,z coordinates"
     @property
     def position(self) -> tuple[float, float, float]:
         return (self.r_vec1[3], self.r_vec2[3], self.r_vec3[3])
@@ -164,67 +192,75 @@ class positionMtx(matrix):
         row3 =[0,0,1.0,z])
         
 class pitchMtx(matrix):
+    "Matrix for rotation around the X axis"
     @property
     def radians(self) -> float:
-        return math.acos(self.r_vec1[0])
+        return self.__radians 
     @radians.setter
     def radians(self, radians: float):
-        s,c = math.sin(radians),math.cos(radians)
-        self.mtx[0,:] = [ c,0,s,0] 
-        self.mtx[2,:] = [-s,0,c,0]  
+        self.__radians = radians
+        s,c = math.sin(radians), math.cos(radians)
+        self.mtx[1,:] = [0,c,-s,0]
+        self.mtx[2,:] = [0,s,c,0]  
          
     def __init__(self, radians: float):
         self.generic()
         self.radians = radians
         
 class yawMtx(matrix):
+    "Matrix for rotation around the Y axis"
     @property
     def radians(self) -> float:
-        return math.acos(self.r_vec2[1])
+        return self.__radians 
     @radians.setter
     def radians(self, radians: float):
-        s,c = math.sin(radians),math.cos(radians)
-        self.mtx[1,:] = [0,c,-s,0] 
-        self.mtx[2,:] = [0,s, c,0] 
+        self.__radians = radians
+        s,c = math.sin(radians), math.cos(radians)
+        
+        self.mtx[0,:] = [c,0,s,0]
+        self.mtx[2,:] = [-s,0,c,0] 
     def __init__(self, radians: float):
         self.generic()
         self.radians = radians
 
 class rollMtx(matrix):
+    "Matrix for rotation around the Z axis"
     @property
     def radians(self) -> float:
-        return math.acos(self.r_vec1[0]) 
+        return self.__radians 
     @radians.setter
     def radians(self, radians: float):
-        s = math.sin(radians)
-        c = math.cos(radians)
+        self.__radians = radians
+        s,c = math.sin(radians), math.cos(radians)
+        
         self.mtx[0,:] = [c,-s,0,0] 
         self.mtx[1,:] = [s, c,0,0]  
         
     def __init__(self, radians: float):
         self.generic()
-        self.radians = radians
+        self.radians = radians 
          
 class rotationMtx(matrix):
+    "Matrix for rotation around the X(Pitch), Y(Yaw), and Z(Roll) axis."
     @property 
     def mtx(self) -> NDArray:
-       return self.pitch.mtx @ self.yaw.mtx @ self.roll.mtx
-        
-        
+        """
+        The numpy array representing the matrix.
+        This computes pitch * yaw * roll then returns the result. 
+        """
+        return self.pitch.mtx @ self.yaw.mtx @ self.roll.mtx
+ 
     @property
     def radians(self) -> tuple[float,float,float]:
         return (self.pitch.radians,self.yaw.radians,self.roll.radians)
-    @radians.setter
-    def radians(self, pitch: float|None = None, yaw:float|None = None, roll:float|None = None):
-        if pitch != None:
-            self.pitch.radians = pitch
-        if yaw != None:
-            self.yaw.radians = yaw
-        if roll != None:
-            self.roll.radians = roll
+
+    def __init__(self, pitchMatrix:pitchMtx, yawMatrix:yawMtx, rollMatrix:rollMtx):
         
-    def __init__(self, pitchMatrix: pitchMtx, yawMatrix:   yawMtx, rollMatrix:  rollMtx):
         self.pitch = pitchMatrix
         self.yaw = yawMatrix
         self.roll = rollMatrix
-        
+
+    def rotateRadians(self, pitch: float = 0, yaw: float = 0, roll: float = 0):
+        self.pitch.radians = (self.pitch.radians + pitch) % (2 * math.pi)
+        self.yaw.radians = (self.yaw.radians + yaw) % (2 * math.pi)
+        self.roll.radians = (self.roll.radians + roll) % (2 * math.pi)
