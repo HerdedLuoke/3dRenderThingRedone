@@ -1,0 +1,294 @@
+import moderngl as mgl
+from dataclasses import dataclass
+import moderngl_window as mgl_w
+from moderngl_window import resources
+from pathlib import Path
+import numpy as np
+import math
+import time
+from moderngl_window.resources import (programs,textures,scenes,data)
+from moderngl_window.meta import (TextureDescription,ProgramDescription,SceneDescription,DataDescription)
+
+class world:
+    pass
+class view:
+    pass
+class projection:
+    pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class transformer:
+    def __init__(self):
+        pass
+
+    def transformMatricies(self, matricies, transformers, amspecial):
+        matricies = np.asarray(matricies)
+        transformers = np.asarray(transformers)
+
+        transformedMatricies = []
+
+        for matrix in matricies:
+
+            localMatrix = transformers @ matrix
+
+            print("after val")
+            print(localMatrix)
+
+            transformedMatricies.append(np.array(localMatrix))
+
+        return transformedMatricies
+    
+    def createTranslationMtx(self, xScalar, yScalar, zScalar):
+        
+        return np.array(
+        [
+            [1,0,0,xScalar],
+            [0,1,0,yScalar],
+            [0,0,1,zScalar],
+            [0,0,0,1]
+        ])
+        
+    def createScaleMtx(self, xScalar, yScalar, zScalar):
+        
+        return np.array(
+        [
+            [xScalar,0,0,0],
+            [0,yScalar,0,0],
+            [0,0,zScalar,0],
+            [0,0,0,1]
+        ])
+        
+    def createXRotMtx(self, deg):
+        locsin = math.sin(deg)
+        loccos = math.cos(deg)
+        array = np.array(
+        [
+            [1,0,0,0],
+            [0,loccos,-locsin,0],
+            [0,locsin,loccos,0],
+            [0,0,0,1]
+        ])
+        return array
+        
+    def createYRotMtx(self, deg):   
+        locsin = math.sin(deg)
+        loccos = math.cos(deg)
+        array = np.array(
+        [
+            [loccos,0,locsin,0],
+            [0,1,0,0],
+            [-locsin,0,loccos,0],
+            [0,0,0,1]
+        ])
+        return array
+        
+    def createZRotMtx(self, deg): 
+        locsin = math.sin(deg)
+        loccos = math.cos(deg)
+        array = np.array(
+        [
+            [loccos,-locsin,0,0],
+            [locsin,loccos,0,0],
+            [0,0,1,0],
+            [0,0,0,1]
+        ])
+        return array
+            
+class quad():
+    def __init__(self, v1,v2,v3):
+        
+        self.triHigh = np.array(
+        [
+            [v1[0], v3[0], v3[0]],
+            [v1[1], v1[1], v3[1]],
+            [v1[2], v1[2], v3[2]],
+            [1,1,1]
+        ])
+        
+        self.triLow = np.array(
+        [
+            [v1[0], v2[0], v3[0]],
+            [v1[1], v2[1], v3[1]],
+            [v1[2], v2[2], v3[2]],
+            [1,1,1]
+        ])
+        
+        self.base = np.array([self.triHigh, self.triLow])
+
+class Window(mgl_w.WindowConfig):
+    
+    gl_version = (3, 3)
+    window_size = (700, 700)
+    vsync = True
+    aspect_ratio = 4 / 4
+    title = "Window"
+    resizable = False
+    samples = 8
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.trans = transformer()
+        resources.register_program_dir(Path.cwd() / "resources" /  "programs")
+        resources.register_data_dir(Path.cwd() / "resources" /  "data")
+        resources.register_texture_dir(Path.cwd() / "resources" /  "textures")
+
+
+        self.sProgram = self.importProgram("exampleProgram","exampleVertex.glsl","exampleFragment.glsl")
+        self.screen = quad(
+            [-1, 1, 0],
+            [-1, -1, 0],
+            [1, -1, 0]
+            )
+        
+        self.myquad = quad(
+            [-1, 1, 0],
+            [-1, -1, 0],
+            [1, -1, 0]
+            )
+        self.currentX = self.trans.createXRotMtx(deg=math.pi/32)
+        self.currentY = self.trans.createYRotMtx(deg=math.pi/32)
+        self.currentZ = self.trans.createZRotMtx(deg=math.pi/32)
+        
+        self.unmoveX = self.trans.createTranslationMtx(-0.1,0,0)
+        self.unmoveY = self.trans.createTranslationMtx(0,-0.1,0)
+        self.unmoveZ = self.trans.createTranslationMtx(0,0,-0.1)
+        self.moveX = self.trans.createTranslationMtx(0.1,0,0)
+        self.moveY = self.trans.createTranslationMtx(0,0.1,0)
+        self.moveZ = self.trans.createTranslationMtx(0,0,0.1)
+        
+        self.same = self.trans.createScaleMtx(1,1,1)
+
+        self.screenVertices = np.array([
+            *(self.myquad.triHigh[:3].transpose()),
+            *(self.myquad.triLow[:3].transpose())
+        ]) 
+        
+        
+        self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
+        self.vao = self.ctx.simple_vertex_array(self.sProgram, self.vbo, 'in_vert')
+        self.mousePos = (0,0)
+        
+        
+        
+        self.ctx.screen.use()
+        self.mouseNum = 0
+
+    def on_render(self, time: float, frametime: float):
+        
+        self.ctx.screen.clear(0.0, 0.0, 0.0, 1.0)
+        
+        self.vao.render(mgl.TRIANGLES)
+        
+    def on_mouse_position_event(self, x, y, dx, dy):
+        self.mousePos = (x,y)
+
+    def on_key_event(self, key, action, modifiers):
+        amspecial = False
+        if action == self.wnd.keys.ACTION_PRESS:
+            if key == self.wnd.keys.X:
+                transformtype = self.currentX
+            elif key == self.wnd.keys.Y:
+                transformtype = self.currentY
+            elif key == self.wnd.keys.Z:
+                transformtype = self.currentZ
+            elif key == self.wnd.keys.DOWN:
+                transformtype =  self.unmoveZ
+                amspecial = True
+            elif key == self.wnd.keys.UP:
+                transformtype = self.moveZ
+                amspecial = True
+            elif key == self.wnd.keys.RIGHT:
+                transformtype = self.moveX
+                amspecial = True
+            elif key == self.wnd.keys.LEFT:
+                transformtype = self.unmoveX
+                amspecial = True
+            elif key == self.wnd.keys.SPACE:
+                transformtype = self.moveY
+            elif key == self.wnd.keys.LEFT_CTRL:
+                transformtype = self.unmoveY
+                amspecial = True
+            else:
+                transformtype = self.same
+                
+            self.matricies = self.trans.transformMatricies(
+                np.array([self.myquad.triHigh, self.myquad.triLow]),
+                transformtype, amspecial)
+            
+            
+                
+            self.myquad.triHigh = self.matricies[0]
+            self.myquad.triLow = self.matricies[1]
+            
+            self.screenVertices = np.array([
+                *(self.matricies[0][:3].transpose()),
+                *(self.matricies[1][:3].transpose())
+            ])
+
+
+        self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
+        self.vao = self.ctx.simple_vertex_array(self.sProgram, self.vbo, 'in_vert')
+        self.mousePos = (0,0)
+        
+        
+        
+        self.ctx.screen.use()
+        self.mouseNum = 0
+        
+        
+        return super().on_key_event(key, action, modifiers)
+
+    def importProgram(self, programFolder:str, vertexProgram:str | None=None, fragmentProgram:str | None=None , computeProgram:str | None=None):
+        
+        folder = Path.cwd() / "resources" /  "programs" / programFolder
+        
+        program = programs.load(ProgramDescription(
+            vertex_shader=vertexProgram,
+            fragment_shader=fragmentProgram,
+            compute_shader=computeProgram
+        ))
+        
+        return program
+    
+    def importData(self, name, myType):
+        dataFile = data.load(DataDescription(
+            path=name,
+            kind=myType
+        ))
+        return dataFile
+    
+    def importTexture(self, name, myType):
+        texture = textures.load(TextureDescription(
+            path=name,
+            kind=myType
+        ))
+        return texture
+        
+         
+
+Window.run()
