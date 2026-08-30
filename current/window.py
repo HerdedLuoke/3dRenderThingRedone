@@ -26,6 +26,9 @@ from matricies import (
 
 from model import meshC, modelContainer
 
+
+
+# most below code is just for tests and will be nuked from orbit
 class Window(mgl_w.WindowConfig):
     @property
     def mainMatrix(self):

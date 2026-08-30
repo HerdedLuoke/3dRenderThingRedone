@@ -11,8 +11,10 @@ class matrix:
     """
     def __init__(self, name: str):
         self.name = str(name)
+        # why did i add this again? 
     def __getitem__(self, key):
         return self.mtx[key]
+    
     
     @property
     def shape(self):
@@ -23,6 +25,10 @@ class matrix:
         Returns the bytes of the current matrix in Column Vector form
         """
         return self.mtx.transpose().astype("f4").tobytes()
+    
+    # the below arent even used by theyre fun and ill find a use for them one day. 
+    # i prolly could store verts and colors in a generic and output as
+    # (row1/vert,row2/vert,row3/vert,row4/color)
     @property
     def c_vec1(self):
         return self.mtx[:,0].copy()
@@ -65,7 +71,9 @@ class matrix:
         if isinstance(other, matrix):
             return self.mtx @ other.mtx
 
-        return self.mtx @ other
+        return self.mtx @ other 
+        # ^ this could be nested into a new matrix object so it returns the correct type? 
+        # likely would also need to check for its variant aswell so it has the correct attributes   
     
     def setterdef(self, value):
         """
@@ -84,6 +92,8 @@ class matrix:
         By default creates a 4x4 identity matrix
         Returns 4x4 with any modified rows and sets it as the .mtx
         """
+        # this can be simplified, its overengineered cuz its leftover code from a old version, 
+        # but i dont rlly need to cuz its such a minimal part of the code
         r1 = np.array([row1[0], row1[1], row1[2], row1[3]])
         r2 = np.array([row2[0], row2[1], row2[2], row2[3]])
         r3 = np.array([row3[0], row3[1], row3[2], row3[3]])
@@ -95,7 +105,7 @@ class mutMatrix(matrix):
     General class for a mutable 4x4 matrix. 
     Inherits .shape, .transpose, .invert and .copy from numpy 
     """
-  
+    # not used but i didnt want to throw out the setters fully
     @matrix.r_vec1.setter
     def r_vec1(self, value) -> None:
         self.mtx[0,:] = self.setterdef(value) 
@@ -121,6 +131,7 @@ class mutMatrix(matrix):
     def c_vec4(self, value) -> None:
         self.mtx[:,3] = self.setterdef(value)
 
+# need to go through and map out all accessible properties for variants and simplify/make more consistent
 class scalingMtx(matrix):
     "Matrix for scaling x,y,z coordinates"
     
@@ -264,3 +275,4 @@ class rotationMtx(matrix):
         self.pitch.radians = (self.pitch.radians + pitch) % (2 * math.pi)
         self.yaw.radians = (self.yaw.radians + yaw) % (2 * math.pi)
         self.roll.radians = (self.roll.radians + roll) % (2 * math.pi)
+    # why wasnt this removed? (i swore i did) should be but ill wait and check for later
