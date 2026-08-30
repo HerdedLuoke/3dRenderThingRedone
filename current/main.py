@@ -77,10 +77,7 @@ class matrix:
         r3 = np.array([row3[0], row3[1], row3[2], row3[3]])
         r4 = np.array([row4[0], row4[1], row4[2], row4[3]])
         self.mtx = np.array([r1,r2,r3,r4]) 
-        
-   
-    
-    
+         
 class mutMatrix(matrix):
     "General class for a 4x4 matrix. Inherits some numpy array methods. Row/Column vectors are mutable"
   
@@ -108,8 +105,7 @@ class mutMatrix(matrix):
     @matrix.c_vec4.setter
     def c_vec4(self, value) -> None:
         self.mtx[:,3] = self.setterdef(value)
-    
-    
+
 class scalingMtx(matrix):
     
     @property
@@ -143,7 +139,6 @@ class scalingMtx(matrix):
             row2=  [0,y,0,0], 
             row3=  [0,0,z,0])
         
-
 class positionMtx(matrix):
     @property
     def position(self) -> tuple[float, float, float]:
@@ -217,9 +212,7 @@ class rollMtx(matrix):
     def __init__(self, radians: float):
         self.generic()
         self.radians = radians
-        
-    
-    
+         
 class rotationMtx(matrix):
     @property 
     def mtx(self) -> NDArray:
@@ -242,6 +235,7 @@ class rotationMtx(matrix):
         self.pitch = pitchMatrix
         self.yaw = yawMatrix
         self.roll = rollMatrix
+        
         
 p = pitchMtx(math.pi)
 y = yawMtx(0)
@@ -277,7 +271,7 @@ class model:
         #self.worldCenter =
         pass
     def scale(self, x, y, z):
-        matrix
+        
         pass
     def translate(self, x, y, z):
         pass
@@ -292,21 +286,15 @@ class model:
     
             
         
-
-    
-    
-    
-
-
-
-
-
-
-class transformer:
-    def __init__(self):
+class triangle:
+    @property
+    def verts(self):
         pass
+   
 
-            
+    def __init__(self, vert1:tuple[float, float, float] | list[float, float, float] | NDArray, vert2:tuple | list, vert3:tuple | list):
+        self.vertex1 = np.asarray(vert1)
+             
 class quad():
     def __init__(self, v1,v2,v3):
         
@@ -329,6 +317,9 @@ class quad():
         self.base = np.array([self.triHigh, self.triLow])
 
 class Window(mgl_w.WindowConfig):
+    @property
+    def mainMatrix(self):
+        return self.pos @ self.rotation
     
     gl_version = (3, 3)
     window_size = (700, 700)
@@ -340,7 +331,7 @@ class Window(mgl_w.WindowConfig):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.trans = transformer()
+        
         
         self.camera = KeyboardCamera(
             self.wnd.keys,
@@ -372,6 +363,7 @@ class Window(mgl_w.WindowConfig):
             self.wnd.keys.LEFT_SHIFT: "U",
             self.wnd.keys.SPACE: "U"
             }
+        
         resources.register_program_dir(Path.cwd() / "resources" /  "programs")
         resources.register_data_dir(Path.cwd() / "resources" /  "data")
         resources.register_texture_dir(Path.cwd() / "resources" /  "textures")
@@ -389,31 +381,65 @@ class Window(mgl_w.WindowConfig):
             [-1, -1, 0],
             [1, -1, 0]
             )
-        
 
-        self.screenVertices = np.array([
-            *(self.myquad.triHigh[:3].transpose()),
-            *(self.myquad.triLow[:3].transpose())
-        ]) 
+        self.pitchX = pitchMtx(0)
+        self.yawY = yawMtx(0)
+        self.rollZ = rollMtx(0)
+        self.rotation = rotationMtx(self.pitchX,self.yawY,self.rollZ)
         
-        
+        self.pos = positionMtx(0,0,0)
+
+        self.scale = scalingMtx(1,1,1)
+        self.transform()
+        self.screenVertices = np.asarray(self.worldVert)  
         self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
         self.vao = self.ctx.simple_vertex_array(self.sProgram, self.vbo, 'in_vert')
-        self.mousePos = (0,0)
+        self.mousePos = (0,0) 
         self.ctx.screen.use()
         self.mouseNum = 0
 
     def on_render(self, time: float, frametime: float):
-        
-        self.ctx.screen.clear(0, 0, 0, 1.0)
+        self.transform()
+        self.screenVertices = np.asarray(self.worldVert)
+        self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
+        self.vao = self.ctx.simple_vertex_array(self.sProgram, self.vbo, 'in_vert')
+        self.ctx.screen.use()
+        self.mouseNum = 0
+        self.ctx.screen.clear(0.0, 0.0, 0.0, 1.0)
         self.vao.render(mgl.TRIANGLES)
         
     def on_mouse_position_event(self, x, y, dx, dy):
         self.mousePos = (x,y)
 
     def on_key_event(self, key, action, modifiers):
-        
-        
+        amspecial = False
+        if action == self.wnd.keys.ACTION_PRESS:
+            if key == self.wnd.keys.X:
+                self.rotate(pitchRadians=math.pi/32)
+            elif key == self.wnd.keys.Y:
+                self.rotate(yawRadians=math.pi/32)
+            elif key == self.wnd.keys.Z:
+                self.rotate(rollRadians=math.pi/32)
+            elif key == self.wnd.keys.DOWN:
+                self.move(z=-0.1)
+                amspecial = True
+            elif key == self.wnd.keys.UP:
+                self.move(z=0.1)
+                amspecial = True
+            elif key == self.wnd.keys.RIGHT:
+                self.move(x=0.1)
+                amspecial = True
+            elif key == self.wnd.keys.LEFT:
+                self.move(x=-0.1)
+                amspecial = True
+            elif key == self.wnd.keys.SPACE:
+                self.move(y=0.1)
+            elif key == self.wnd.keys.LEFT_CTRL:
+                self.move(y=-0.1)
+
+            
+
+
         
         
         return super().on_key_event(key, action, modifiers)
@@ -443,7 +469,21 @@ class Window(mgl_w.WindowConfig):
             kind=myType
         ))
         return texture
-        
-         
+    
+    def move(self, x:float=0, y:float=0, z:float=0):
+        self.pos.x = self.pos.x + x
+        self.pos.y = self.pos.y + y
+        self.pos.z = self.pos.z + z
+    
+    def rotate(self, pitchRadians: float=0, yawRadians: float=0, rollRadians: float=0):
+        self.rotation.pitch.radians = pitchRadians + self.rotation.pitch.radians
+        self.rotation.yaw.radians += yawRadians 
+        self.rotation.roll.radians += rollRadians
+    
+    def transform(self):
+        highVerts = (self.mainMatrix @ self.myquad.triHigh)[:3].T
+        lowVerts = (self.mainMatrix @ self.myquad.triLow)[:3].T
 
-#Window.run()
+        self.worldVert = np.vstack((highVerts, lowVerts))
+
+Window.run()
