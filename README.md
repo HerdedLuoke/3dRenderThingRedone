@@ -1,2 +1,2 @@
 # 3dRenderThingRedone
-bro. moderngl i love you and hate you. python... i love setters. i lowk have been so fixated on this i forgot to git the few days of edits..
+ok! my really really really bad matrix class and subclasses + basic usage of them in a rendering of a spinning square. this will mostly serve as a template for future projects
