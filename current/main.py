@@ -1,17 +1,17 @@
 import numpy as np
 import moderngl as mgl
-from dataclasses import dataclass
 import moderngl_window as mgl_w
 from moderngl_window import (resources, geometry)
-from moderngl_window.opengl.vao import VAO
 from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 import math
-import time
 from moderngl_window.resources import (programs,textures,scenes,data)
 from moderngl_window.meta import (TextureDescription,ProgramDescription,SceneDescription,DataDescription)
 from moderngl_window.scene import (KeyboardCamera, mesh)
+
+
+
 
 class matrix:
     """
@@ -276,6 +276,8 @@ class rotationMtx(matrix):
 
         
 class meshC:
+    # this needs a vao, vbo, and verticies element, 
+    # in addition to regenerating such after a .shader property is modified.
     def __init__(self):
         pass
     
