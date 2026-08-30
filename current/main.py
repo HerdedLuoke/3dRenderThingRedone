@@ -1,7 +1,9 @@
+import numpy as np
 import moderngl as mgl
 from dataclasses import dataclass
 import moderngl_window as mgl_w
-from moderngl_window import resources
+from moderngl_window import (resources, geometry)
+from moderngl_window.opengl.vao import VAO
 from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
@@ -10,7 +12,6 @@ import time
 from moderngl_window.resources import (programs,textures,scenes,data)
 from moderngl_window.meta import (TextureDescription,ProgramDescription,SceneDescription,DataDescription)
 from moderngl_window.scene import (KeyboardCamera, mesh)
-
 
 class matrix:
     """
@@ -30,7 +31,7 @@ class matrix:
         """
         Returns the bytes of the current matrix in Column Vector form
         """
-        return self.mtx.astype("f4").tobytes(order="F")
+        return self.mtx.transpose().astype("f4").tobytes()
     @property
     def c_vec1(self):
         return self.mtx[:,0].copy()
@@ -138,6 +139,7 @@ class scalingMtx(matrix):
 
     @property
     def x(self) -> float:
+        """The x axis scale. Is mutable"""
         return self.mtx[0,0]
     @x.setter
     def x(self, value: float):
@@ -145,6 +147,7 @@ class scalingMtx(matrix):
 
     @property
     def y(self) -> float:
+        """The y axis scale. Is mutable"""
         return self.mtx[1,1]
     @y.setter
     def y(self, value: float):
@@ -152,6 +155,7 @@ class scalingMtx(matrix):
 
     @property
     def z(self) -> float:
+        """The z axis scale. Is mutable"""
         return self.mtx[2,2]
     @z.setter
     def z(self, value: float):
@@ -205,8 +209,8 @@ class pitchMtx(matrix):
     def radians(self, radians: float):
         self.__radians = radians
         s,c = math.sin(radians), math.cos(radians)
-        self.mtx[0,:] = [ c,0,s,0] 
-        self.mtx[2,:] = [-s,0,c,0]  
+        self.mtx[1,:] = [0,c,-s,0]
+        self.mtx[2,:] = [0,s,c,0]  
          
     def __init__(self, radians: float):
         self.generic()
@@ -222,8 +226,8 @@ class yawMtx(matrix):
         self.__radians = radians
         s,c = math.sin(radians), math.cos(radians)
         
-        self.mtx[1,:] = [0,c,-s,0] 
-        self.mtx[2,:] = [0,s, c,0] 
+        self.mtx[0,:] = [c,0,s,0]
+        self.mtx[2,:] = [-s,0,c,0] 
     def __init__(self, radians: float):
         self.generic()
         self.radians = radians
@@ -264,70 +268,130 @@ class rotationMtx(matrix):
         self.pitch = pitchMatrix
         self.yaw = yawMatrix
         self.roll = rollMatrix
+
+    def rotateRadians(self, pitch: float = 0, yaw: float = 0, roll: float = 0):
+        self.pitch.radians = (self.pitch.radians + pitch) % (2 * math.pi)
+        self.yaw.radians = (self.yaw.radians + yaw) % (2 * math.pi)
+        self.roll.radians = (self.roll.radians + roll) % (2 * math.pi)
+
         
+class meshC:
+    def __init__(self):
+        pass
+    
+      
+
+
+class modelContainer:
+    @property
+    def modelMatrix(self):
+        return (self.positionMatrix @ self.rotationMatrix) @ self.scaleMatrix.mtx
+    @property
+    def cameraMatrix(self):
+        return np.frombuffer(self.__cameraMatrix, dtype='f4').reshape((4,4)) # make get dynamically from the window
+    @property
+    def projectionMatrix(self):
+        return self.__projectionMatrix # make get dynamically from the window
+    @property
+    def modelMatrixBytes(self):
+        return self.modelMatrix.transpose().astype('f4').tobytes()
+    @property
+    def cameraMatrixBytes(self):
+        return self.__cameraMatrix # by default is in byteform 
+    @property
+    def projectionMatrixBytes(self):
+        return self.__projectionMatrix.tobytes()
+    
+    def __init__(self, imesh:meshC, scaleMatrix: scalingMtx, positionMatrix:positionMtx, rotationMatrix:rotationMtx, cameraMatrix:NDArray, projectionMatrix:NDArray):
+        
+        self.mesh= imesh
+        self.verticies = self.mesh.verticies
+        self.vao = self.mesh.vao
+        self.vbo = self.mesh.vbo
+        
+        self.__projectionMatrix = projectionMatrix
+        self.__cameraMatrix = cameraMatrix
+        
+        self.positionMatrix = positionMatrix
+        self.scaleMatrix = scaleMatrix
+        self.rotationMatrix = rotationMatrix
+      
+    def setScale(self, x:float|None = None, y:float|None = None, z:float|None = None):
+        if x != None:
+            self.scaleMatrix.x = x
+        if y != None:
+            self.scaleMatrix.y = y
+        if z != None:
+            self.scaleMatrix.z = z
+            
+    def incrementScale(self, x:float = 0, y:float = 0, z:float = 0):
+        self.scaleMatrix.x = x + self.scaleMatrix.x
+        self.scaleMatrix.y = y + self.scaleMatrix.y
+        self.scaleMatrix.z = z + self.scaleMatrix.z
+    
     def setRadians(self, pitch: float|None = None, yaw:float|None = None, roll:float|None = None):
         if pitch != None:
-            self.pitch.radians = pitch
+            self.rotationMatrix.pitch.radians = pitch
         if yaw != None:
-            self.yaw.radians = yaw
+            self.rotationMatrix.yaw.radians = yaw
         if roll != None:
-            self.roll.radians = roll
+            self.rotationMatrix.roll.radians = roll
             
     def rotateRadians(self, pitch: float=0, yaw:float=0, roll:float=0):
     
-        self.pitch.radians = (pitch + self.pitch.radians) % (2*math.pi)
-       
-        self.yaw.radians = (yaw + self.yaw.radians) % (2*math.pi)
+        self.rotationMatrix.pitch.radians = (pitch + self.rotationMatrix.pitch.radians) % (2*math.pi)
+        self.rotationMatrix.yaw.radians = (yaw + self.rotationMatrix.yaw.radians) % (2*math.pi)
+        self.rotationMatrix.roll.radians = (roll + self.rotationMatrix.roll.radians) % (2*math.pi)
+    
+    def setPosition(self, x:float|None = None, y:float|None = None, z:float|None = None):
+        if x != None:
+            self.positionMatrix.x = x
+        if y != None:
+            self.positionMatrix.y = y
+        if z != None:
+            self.positionMatrix.z = z
+            
+    def incrementPosition(self, x:float = 0, y:float = 0, z:float = 0 ):
         
-        self.roll.radians = (roll + self.roll.radians) % (2*math.pi)
-        
+        self.positionMatrix.x = x + self.positionMatrix.x
+        self.positionMatrix.y = y + self.positionMatrix.y
+        self.positionMatrix.z = z + self.positionMatrix.z
+    
 
-
-
-
-
-
-class model:
-    def __init__(self, mesh, scale, worldMatrix):
-        self.mesh = mesh
-        self.scale = scale
-        self.worldMatrix = worldMatrix
-    def getWorld(self):
-        #self.worldCenter =
-        pass
 
     
-            
-        
+    
 class triangle:
     @property
-    def verts(self):
-        pass
-   
+    def vertices(self):
+        "this returns the list of verticies in a continous style cuz buffer perfers that"
+        return np.ascontiguousarray(
+            [*self.__vertex1, *self.__vertex2, *self.__vertex3],
+            dtype=np.float32,
+        )
 
-    def __init__(self, vert1:tuple[float, float, float] | list[float, float, float] | NDArray, vert2:tuple | list, vert3:tuple | list):
-        self.vertex1 = np.asarray(vert1)
-             
-class quad():
-    def __init__(self, v1,v2,v3):
-        
-        self.triHigh = np.array(
-        [
-            [v1[0], v3[0], v3[0]],
-            [v1[1], v1[1], v3[1]],
-            [v1[2], v1[2], v3[2]],
-            [1,1,1]
-        ])
-        
-        self.triLow = np.array(
-        [
-            [v1[0], v2[0], v3[0]],
-            [v1[1], v2[1], v3[1]],
-            [v1[2], v2[2], v3[2]],
-            [1,1,1]
-        ])
-        
-        self.base = np.array([self.triHigh, self.triLow])
+    @property
+    def verticies(self):
+        # Backward-compatible alias; prefer .vertices going forward.
+        return self.vertices
+    def __init__(self, vertex1:tuple[float, float, float, float] | list[float, float, float, float] |  NDArray, vertex2: tuple[float, float, float, float] | list[float, float, float, float] |  NDArray, vertex3:tuple[float, float, float, float] | list[float, float, float, float] |  NDArray):
+        self.__vertex1 = np.asarray(vertex1)
+        self.__vertex2 = np.asarray(vertex2)
+        self.__vertex3 = np.asarray(vertex3)
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class Window(mgl_w.WindowConfig):
     @property
@@ -399,6 +463,7 @@ class Window(mgl_w.WindowConfig):
         self.rotation = rotationMtx(self.pitchX,self.yawY,self.rollZ)
         self.pos = positionMtx(0,0,0)
         self.scale = scalingMtx(0.5,0.5,0.5)
+
 
     def on_render(self, time: float, frametime: float):
         self.rotateX(p=math.pi/1024)
@@ -483,3 +548,4 @@ class Window(mgl_w.WindowConfig):
     
 
 Window.run()
+
