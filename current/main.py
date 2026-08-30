@@ -4,6 +4,7 @@ import moderngl_window as mgl_w
 from moderngl_window import resources
 from pathlib import Path
 import numpy as np
+from numpy.typing import NDArray
 import math
 import time
 from moderngl_window.resources import (programs,textures,scenes,data)
@@ -48,16 +49,16 @@ class matrix:
     def r_vec4(self):
         return self.mtx[3,:].copy()
 
-    def copy(self):
+    def copy(self) -> NDArray:
         return self.mtx.copy()
 
-    def transpose(self):
+    def transpose(self) -> NDArray:
         return self.mtx.transpose()
 
-    def inverse(self):
+    def inverse(self) -> NDArray:
         return np.linalg.inv(self.mtx)
     
-    def __matmul__(self, other):
+    def __matmul__(self, other) -> NDArray:
         if isinstance(other, matrix):
             return self.mtx @ other.mtx
 
@@ -70,7 +71,7 @@ class matrix:
         return value
 
     
-    def generic(self,row1=[0,0,0,0], row2=[0,0,0,0], row3=[0,0,0,0], row4=[0,0,0,0]):
+    def generic(self,row1=[1.0,0,0,0], row2=[0,1.0,0,0], row3=[0,0,1.0,0], row4=[0,0,0,1.0]):
         r1 = np.array([row1[0], row1[1], row1[2], row1[3]])
         r2 = np.array([row2[0], row2[1], row2[2], row2[3]])
         r3 = np.array([row3[0], row3[1], row3[2], row3[3]])
@@ -84,167 +85,152 @@ class mutMatrix(matrix):
     "General class for a 4x4 matrix. Inherits some numpy array methods. Row/Column vectors are mutable"
   
     @matrix.r_vec1.setter
-    def r_vec1(self, value):
+    def r_vec1(self, value) -> None:
         self.mtx[0,:] = self.setterdef(value) 
     @matrix.r_vec2.setter
-    def r_vec2(self, value):
+    def r_vec2(self, value) -> None:
         self.mtx[1,:] = self.setterdef(value) 
     @matrix.r_vec3.setter
-    def r_vec3(self, value):
+    def r_vec3(self, value) -> None:
         self.mtx[2,:] = self.setterdef(value)
     @matrix.r_vec4.setter
-    def r_vec4(self, value):
+    def r_vec4(self, value) -> None:
         self.mtx[3,:] = self.setterdef(value)
     @matrix.c_vec1.setter
-    def c_vec1(self, value):
+    def c_vec1(self, value) -> None:
         self.mtx[:,0] = self.setterdef(value)
     @matrix.c_vec2.setter
-    def c_vec2(self, value):
+    def c_vec2(self, value) -> None:
         self.mtx[:,1] = self.setterdef(value)
     @matrix.c_vec3.setter
-    def c_vec3(self, value):
+    def c_vec3(self, value) -> None:
         self.mtx[:,2] = self.setterdef(value)
     @matrix.c_vec4.setter
-    def c_vec4(self, value):
+    def c_vec4(self, value) -> None:
         self.mtx[:,3] = self.setterdef(value)
     
     
 class scalingMtx(matrix):
     
     @property
-    def scale(self):
+    def scale(self) -> tuple[float,float,float]:
         return (self.r_vec1[0].copy(), self.r_vec2[1].copy(), self.r_vec3[2].copy())
 
     @property
-    def x(self):
+    def x(self) -> float:
         return self.mtx[0,0]
     @x.setter
-    def x(self, value):
+    def x(self, value: float):
         self.mtx[0,0] = value
 
     @property
-    def y(self):
+    def y(self) -> float:
         return self.mtx[1,1]
     @y.setter
-    def y(self, value):
+    def y(self, value: float):
         self.mtx[1,1] = value
 
     @property
-    def z(self):
+    def z(self) -> float:
         return self.mtx[2,2]
     @z.setter
-    def z(self, value):
+    def z(self, value: float):
         self.mtx[2,2] = value
     
-    def __init__(self, x=1.0, y=1.0, z=1.0): 
+    def __init__(self, x: float=1.0, y:float=1.0, z:float=1.0): 
         self.generic(  
-            row1=  [x,0,0,0.0], 
-            row2=  [0,y,0,0.0], 
-            row3=  [0,0,z,0.0], 
-            row4=  [0,0,0,1.0])
+            row1=  [x,0,0,0], 
+            row2=  [0,y,0,0], 
+            row3=  [0,0,z,0])
         
 
 class positionMtx(matrix):
     @property
-    def position(self):
+    def position(self) -> tuple[float, float, float]:
         return (self.r_vec1[3], self.r_vec2[3], self.r_vec3[3])
 
     @property
-    def x(self):
+    def x(self) -> float:
         return self.mtx[0,3]
     @x.setter
-    def x(self, value):
+    def x(self, value: float):
         self.mtx[0,3] = value
 
     @property
-    def y(self):
+    def y(self) -> float:
         return self.mtx[1,3]
     @y.setter
-    def y(self, value):
+    def y(self, value: float):
         self.mtx[1,3] = value
 
     @property
-    def z(self):
+    def z(self) -> float:
         return self.mtx[2,3]
     @z.setter
-    def z(self, value):
+    def z(self, value: float):
         self.mtx[2,3] = value
     
-    def __init__(self, x=1.0, y=1.0, z=1.0):
+    def __init__(self, x: float=1.0, y:float=1.0, z:float=1.0):
         self.generic(
         row1 =[1.0,0,0,x], 
         row2 =[0,1.0,0,y],
-        row3 =[0,0,1.0,z], 
-        row4 =[0,0,0,1.0])
+        row3 =[0,0,1.0,z])
         
 class pitchMtx(matrix):
     @property
-    def radians(self):
+    def radians(self) -> float:
         return math.acos(self.r_vec1[0])
     @radians.setter
-    def radians(self, radians):
+    def radians(self, radians: float):
         s,c = math.sin(radians),math.cos(radians)
         self.mtx[0,:] = [ c,0,s,0] 
         self.mtx[2,:] = [-s,0,c,0]  
          
-    def __init__(self, radians):
-        self.generic(
-            row1=[1.0,0.0,0.0,0.0],
-            row2=[0.0,1.0,0.0,0.0],
-            row3=[0.0,0.0,1.0,0.0],
-            row4=[0.0,0.0,0.0,1.0])
+    def __init__(self, radians: float):
+        self.generic()
         self.radians = radians
         
 class yawMtx(matrix):
     @property
-    def radians(self):
+    def radians(self) -> float:
         return math.acos(self.r_vec2[1])
     @radians.setter
-    def radians(self, radians):
+    def radians(self, radians: float):
         s,c = math.sin(radians),math.cos(radians)
         self.mtx[1,:] = [0,c,-s,0] 
         self.mtx[2,:] = [0,s, c,0] 
-    def __init__(self, radians):
-        self.generic(
-            row1=[1.0,0.0,0.0,0.0],
-            row2=[0.0,1.0,0.0,0.0],
-            row3=[0.0,0.0,1.0,0.0],
-            row4=[0.0,0.0,0.0,1.0])
+    def __init__(self, radians: float):
+        self.generic()
         self.radians = radians
 
 class rollMtx(matrix):
     @property
-    def radians(self):
+    def radians(self) -> float:
         return math.acos(self.r_vec1[0]) 
     @radians.setter
-    def radians(self, radians):
+    def radians(self, radians: float):
         s = math.sin(radians)
         c = math.cos(radians)
         self.mtx[0,:] = [c,-s,0,0] 
         self.mtx[1,:] = [s, c,0,0]  
         
-    def __init__(self, radians):
-        self.generic(
-            row1=[1.0,0.0,0.0,0.0],
-            row2=[0.0,1.0,0.0,0.0],
-            row3=[0.0,0.0,1.0,0.0],
-            row4=[0.0,0.0,0.0,1.0])
+    def __init__(self, radians: float):
+        self.generic()
         self.radians = radians
         
     
     
 class rotationMtx(matrix):
     @property 
-    def mtx(self):
+    def mtx(self) -> NDArray:
        return self.pitch.mtx @ self.yaw.mtx @ self.roll.mtx
         
         
     @property
-    def radians(self):
+    def radians(self) -> tuple[float,float,float]:
         return (self.pitch.radians,self.yaw.radians,self.roll.radians)
     @radians.setter
-    def radians(self, radians):
-        pitch, yaw, roll = radians
+    def radians(self, pitch: float|None = None, yaw:float|None = None, roll:float|None = None):
         if pitch != None:
             self.pitch.radians = pitch
         if yaw != None:
@@ -257,12 +243,27 @@ class rotationMtx(matrix):
         self.yaw = yawMatrix
         self.roll = rollMatrix
         
-        
-        
 p = pitchMtx(math.pi)
-y = yawMtx(math.pi)
-r = rollMtx(math.pi)
+y = yawMtx(0)
+r = rollMtx(0)
 rot = rotationMtx(p,y,r)
+
+print("rows")
+print(rot.r_vec1)
+print(rot.r_vec2)
+print(rot.r_vec3)
+print(rot.r_vec4)
+print("columns")
+print(rot.c_vec1)
+print(rot.c_vec2)
+print(rot.c_vec3)
+print(rot.c_vec4)
+print("inverse")
+print(rot.inverse())
+print("transpose")
+print(rot.transpose())
+print("shape")
+print(rot.shape)
 
 
 
@@ -346,7 +347,7 @@ class Window(mgl_w.WindowConfig):
             fov=75.0,
             aspect_ratio=self.wnd.aspect_ratio,
             near=0.1,
-            far=1000.0,  
+            far=1000,  
         )
         
         
@@ -399,21 +400,22 @@ class Window(mgl_w.WindowConfig):
         self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
         self.vao = self.ctx.simple_vertex_array(self.sProgram, self.vbo, 'in_vert')
         self.mousePos = (0,0)
-        
-        
-        
         self.ctx.screen.use()
         self.mouseNum = 0
 
     def on_render(self, time: float, frametime: float):
         
-        self.ctx.screen.clear(0.0, 0.0, 0.0, 1.0)
+        self.ctx.screen.clear(0, 0, 0, 1.0)
         self.vao.render(mgl.TRIANGLES)
         
     def on_mouse_position_event(self, x, y, dx, dy):
         self.mousePos = (x,y)
 
     def on_key_event(self, key, action, modifiers):
+        
+        
+        
+        
         return super().on_key_event(key, action, modifiers)
 
     def importProgram(self, programFolder:str, vertexProgram:str | None=None, fragmentProgram:str | None=None , computeProgram:str | None=None):
@@ -444,4 +446,4 @@ class Window(mgl_w.WindowConfig):
         
          
 
-Window.run()
+#Window.run()
