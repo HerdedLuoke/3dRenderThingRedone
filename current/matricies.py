@@ -28,7 +28,8 @@ class matrix:
     
     # the below arent even used by theyre fun and ill find a use for them one day. 
     # i prolly could store verts and colors in a generic and output as
-    # (row1/vert,row2/vert,row3/vert,row4/color)
+    # (row1:vert,row2/:vert,row3:vert,row4:color)
+    # but issue with that is if i dont use the built in render stuff... nah :3
     @property
     def c_vec1(self):
         return self.mtx[:,0].copy()
@@ -173,6 +174,7 @@ class positionMtx(matrix):
     "Matrix for translating x,y,z coordinates"
     @property
     def position(self) -> tuple[float, float, float]:
+        """dont mutate pls"""
         return (self.r_vec1[3], self.r_vec2[3], self.r_vec3[3])
 
     @property
