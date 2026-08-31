@@ -38,9 +38,6 @@ class Window(mgl_w.WindowConfig):
         self.camera = KeyboardCamera(self.wnd.keys, fov=75.0, aspect_ratio=self.wnd.aspect_ratio, near=0.1, far=1000)
         
         self.actionDict = {
-            self.wnd.keys.U: self.rotateX,
-            self.wnd.keys.I: self.rotateY,
-            self.wnd.keys.O: self.rotateZ,
             self.wnd.keys.W: lambda: self.camera.move_forward(True),
             self.wnd.keys.A: lambda: self.camera.move_left(True),
             self.wnd.keys.S: lambda: self.camera.move_backward(True),
@@ -64,10 +61,11 @@ class Window(mgl_w.WindowConfig):
         resources.register_texture_dir(Path.cwd() / "resources" / "textures")
        
 
+        # TODO: Make a transformation matrix to make these automatically
         
         triangle1 = triangle([-1, -1,  1, 1], [ 1, -1,  1, 1], [ 1,  1,  1, 1])
         triangle2 = triangle([-1, -1,  1, 1], [ 1,  1,  1, 1], [-1,  1,  1, 1])
-
+        
         triangle3 = triangle([-1, -1, -1, 1], [-1,  1, -1, 1], [ 1,  1, -1, 1])
         triangle4 = triangle([-1, -1, -1, 1], [ 1,  1, -1, 1], [ 1, -1, -1, 1])
 
@@ -82,7 +80,9 @@ class Window(mgl_w.WindowConfig):
 
         triangle11 = triangle([-1, -1, -1, 1], [ 1, -1, -1, 1], [ 1, -1,  1, 1])
         triangle12 = triangle([-1, -1, -1, 1], [ 1, -1,  1, 1], [-1, -1,  1, 1])
-
+        
+        # TODO: END TODO HERE :3
+        
         self.screenVertices = np.array([*triangle1.vertices, *triangle2.vertices, *triangle3.vertices, *triangle4.vertices, *triangle5.vertices, *triangle6.vertices, *triangle7.vertices, *triangle8.vertices, *triangle9.vertices, *triangle10.vertices, *triangle11.vertices, *triangle12.vertices], dtype=np.float32)
 
         self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
@@ -95,7 +95,7 @@ class Window(mgl_w.WindowConfig):
         self.wnd.mouse_exclusivity = True
         self.camera.mouse_sensitivity =  1
         self.framelimit = 1/60
-        self.rotlock = False
+        self.movelock = False
 
     def on_render(self, time: float, frametime: float):
         
@@ -110,7 +110,7 @@ class Window(mgl_w.WindowConfig):
         self.cube.shader["cameraMat"].write(self.cube.cameraMatrixBytes)
         self.cube.shader["projectionMat"].write(self.cube.projectionMatrixBytes)
         self.cube.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes()) 
-        # ^ this should be sent with the vao since it doesnt change
+        # TODO: ^ this should be sent with the vao since it doesnt change
         
         self.cube2.shader["modelMat"].write(self.cube2.modelMatrixBytes)
         self.cube2.shader["cameraMat"].write(self.cube2.cameraMatrixBytes)
@@ -131,8 +131,9 @@ class Window(mgl_w.WindowConfig):
         
         
     def on_mouse_position_event(self, x, y, dx, dy):
-        if self.rotlock == False:
+        if self.movelock == False:
             self.camera.rot_state(-dx,-dy)
+            
             
         
         
@@ -144,20 +145,21 @@ class Window(mgl_w.WindowConfig):
             function = self.actionDict.get(key)
 
             if function != None:
-                function()
+                if self.movelock == False:  
+                    function()
                 
             elif key == self.wnd.keys.R:
                 self.cube.shaderUpdate()
                 
             elif key == self.wnd.keys.F:
-                self.rotlock = True
+                self.movelock, self.wnd.mouse_exclusivity = self.wnd.mouse_exclusivity, self.movelock
+                # swaps their states
+                
                 
         elif action == self.wnd.keys.ACTION_RELEASE:
             function = self.stopDict.get(key)
             if function != None:
                 function()
-            elif key == self.wnd.keys.F:
-                self.rotlock = False
                 
         return super().on_key_event(key, action, modifiers)
 
