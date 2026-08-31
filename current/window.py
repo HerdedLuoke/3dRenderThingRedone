@@ -161,7 +161,7 @@ class Window(mgl_w.WindowConfig):
         for render in self.renders:
             render.vao.render(mgl.TRIANGLES)
             
-        self.newRender()
+        # self.newRender()
         self.attemptMove()
 
         
