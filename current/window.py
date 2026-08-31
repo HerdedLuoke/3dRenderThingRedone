@@ -30,7 +30,7 @@ class Window(mgl_w.WindowConfig):
     title = "Window"
     resizable = False
     samples = 8
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -89,21 +89,33 @@ class Window(mgl_w.WindowConfig):
 
         self.cubeMesh = meshC(self.screenVertices, self.vbo)
 
-        self.cube = renderObject(self, self.cubeMesh, scalingMtx(0.5,0.5,0.5), positionMtx(0,0,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
-
+        self.cube = renderObject(self, self.cubeMesh, scalingMtx(0.5,0.5,0.5), positionMtx(2,0,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
+        self.cube2 = renderObject(self, self.cubeMesh, scalingMtx(0.5,0.5,0.5), positionMtx(-2,0,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
+        
+        self.wnd.mouse_exclusivity = True
         self.camera.mouse_sensitivity =  1
-        self.framelimit = float(1/60)
+        self.framelimit = 1/60
         self.rotlock = False
 
     def on_render(self, time: float, frametime: float):
         
-        start = timey.time()
+        sleeptime = self.framelimit - frametime
+        if sleeptime > 0:
+            timey.sleep(sleeptime)
 
         self.cube.incrementRadians(pitch=math.pi/2048, yaw=math.pi/2048)
+        self.cube2.incrementRadians(pitch=math.pi/2048, yaw=math.pi/2048)
         
         self.cube.shader["modelMat"].write(self.cube.modelMatrixBytes)
         self.cube.shader["cameraMat"].write(self.cube.cameraMatrixBytes)
         self.cube.shader["projectionMat"].write(self.cube.projectionMatrixBytes)
+        self.cube.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes()) 
+        # ^ this should be sent with the vao since it doesnt change
+        
+        self.cube2.shader["modelMat"].write(self.cube2.modelMatrixBytes)
+        self.cube2.shader["cameraMat"].write(self.cube2.cameraMatrixBytes)
+        self.cube2.shader["projectionMat"].write(self.cube2.projectionMatrixBytes)
+        self.cube2.shader["colordata"].write(np.array([0,1,0,1]).astype('f4').tobytes())
         
         self.ctx.screen.use()
         
@@ -111,12 +123,9 @@ class Window(mgl_w.WindowConfig):
         self.ctx.enable(mgl.DEPTH_TEST)
 
         self.cube.vao.render(mgl.TRIANGLES)
-        
-        elapsed = timey.time() - start
-        sleep = self.framelimit - elapsed
+        self.cube2.vao.render(mgl.TRIANGLES)
+    
 
-        if sleep > 0:
-            timey.sleep(sleep)
         
     
         
@@ -124,6 +133,9 @@ class Window(mgl_w.WindowConfig):
     def on_mouse_position_event(self, x, y, dx, dy):
         if self.rotlock == False:
             self.camera.rot_state(-dx,-dy)
+            
+        
+        
         
 
 
