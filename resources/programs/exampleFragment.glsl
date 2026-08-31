@@ -13,7 +13,7 @@ void main()
 { 
     
     
-    fragColor = vec4(color,color,color,1.0);
+    fragColor = vec4(color/1.1,color/1.5,color,1.0);
     
     
 }

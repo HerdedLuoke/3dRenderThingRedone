@@ -93,22 +93,13 @@ class Window(mgl_w.WindowConfig):
         triangle11 = triangle([-1, -1, -1, 1], [ 1, -1, -1, 1], [ 1, -1,  1, 1])
         triangle12 = triangle([-1, -1, -1, 1], [ 1, -1,  1, 1], [-1, -1,  1, 1])
         
-        self.verts = np.array([
-            *triangle1.vertices,*triangle2.vertices,*triangle3.vertices,*triangle4.vertices,
-            *triangle5.vertices,*triangle6.vertices,*triangle7.vertices,*triangle8.vertices,
-            *triangle9.vertices,*triangle10.vertices,*triangle11.vertices,*triangle12.vertices])
+        self.screenVertices = np.array([*triangle1.vertices,*triangle2.vertices,*triangle3.vertices,*triangle4.vertices,*triangle5.vertices,*triangle6.vertices,*triangle7.vertices,*triangle8.vertices,*triangle9.vertices,*triangle10.vertices,*triangle11.vertices,*triangle12.vertices])
         
-        self.screenVertices = self.verts
         self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
         self.vao = self.ctx.simple_vertex_array(self.sProgram, self.vbo, 'in_vert')
         
-        self.pitchX = pitchMtx(0)
-        self.yawY = yawMtx(0)
-        self.rollZ = rollMtx(0)
-        self.rotation = rotationMtx(self.pitchX,self.yawY,self.rollZ)
-        self.pos = positionMtx(0,0,0)
-        self.scale = scalingMtx(0.5,0.5,0.5)
-
+        self.pitchX, self.yawY, self.rollZ = (pitchMtx(0), yawMtx(0), rollMtx(0))
+        self.rotation, self.pos, self.scale = (rotationMtx(self.pitchX,self.yawY,self.rollZ), positionMtx(0,0,1), scalingMtx(0.5,0.5,0.5))
 
     def on_render(self, time: float, frametime: float):
         self.rotateX(p=math.pi/2048)
@@ -135,6 +126,12 @@ class Window(mgl_w.WindowConfig):
             function = self.actionDict.get(key)
             if function != None:
                 function()
+                
+            elif key == self.wnd.keys.R:
+                self.sProgram = self.importProgram("exampleProgram","exampleVertex.glsl","exampleFragment.glsl")
+                self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
+                self.vao = self.ctx.simple_vertex_array(self.sProgram, self.vbo, 'in_vert')
+                
         return super().on_key_event(key, action, modifiers)
 
     def importProgram(self, programFolder:str, vertexProgram:str | None=None, fragmentProgram:str | None=None , computeProgram:str | None=None):
