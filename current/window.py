@@ -83,14 +83,24 @@ class Window(mgl_w.WindowConfig):
         
         # TODO: END TODO HERE :3
         
-        self.screenVertices = np.array([*triangle1.vertices, *triangle2.vertices, *triangle3.vertices, *triangle4.vertices, *triangle5.vertices, *triangle6.vertices, *triangle7.vertices, *triangle8.vertices, *triangle9.vertices, *triangle10.vertices, *triangle11.vertices, *triangle12.vertices], dtype=np.float32)
+        self.cubeVertices = np.array([*triangle1.vertices, *triangle2.vertices, *triangle3.vertices, *triangle4.vertices, *triangle5.vertices, *triangle6.vertices, *triangle7.vertices, *triangle8.vertices, *triangle9.vertices, *triangle10.vertices, *triangle11.vertices, *triangle12.vertices], dtype=np.float32)
 
-        self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
+        self.cubevbo = self.ctx.buffer(self.cubeVertices.astype('f4').tobytes())
 
-        self.cubeMesh = meshC(self.screenVertices, self.vbo)
-
+        self.cubeMesh = meshC(self.cubeVertices, self.cubevbo)
+        
+        triangle100 = triangle([-1, -1,  1, 1], [ 1, -1,  1, 1], [ 1,  -1, -1, 1])
+        triangle200 = triangle([-1, -1,  1, 1], [-1, -1, -1, 1], [ 1,  -1,  -1, 1])
+        
+        self.floorverts = np.array([*triangle100.vertices, *triangle200.vertices,])
+        self.floorvbo = self.ctx.buffer(self.floorverts.astype('f4').tobytes())
+        self.floorMesh = meshC(self.floorverts , self.floorvbo)
+        
         self.cube = renderObject(self, self.cubeMesh, scalingMtx(0.5,0.5,0.5), positionMtx(2,0,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
         self.cube2 = renderObject(self, self.cubeMesh, scalingMtx(0.5,0.5,0.5), positionMtx(-2,0,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
+        
+        self.floor = renderObject(self, self.floorMesh, scalingMtx(20,1,20), positionMtx(0,-2,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
+        
         
         self.wnd.mouse_exclusivity = True
         self.camera.mouse_sensitivity =  1
@@ -103,8 +113,8 @@ class Window(mgl_w.WindowConfig):
         if sleeptime > 0:
             timey.sleep(sleeptime)
 
-        self.cube.incrementRadians(pitch=math.pi/2048, yaw=math.pi/2048)
-        self.cube2.incrementRadians(pitch=math.pi/2048, yaw=math.pi/2048)
+        self.cube.incrementRadians(pitch=math.pi/100, yaw=math.pi/70)
+        self.cube2.incrementRadians(pitch=math.pi/70, yaw=math.pi/100)
         
         self.cube.shader["modelMat"].write(self.cube.modelMatrixBytes)
         self.cube.shader["cameraMat"].write(self.cube.cameraMatrixBytes)
@@ -117,6 +127,12 @@ class Window(mgl_w.WindowConfig):
         self.cube2.shader["projectionMat"].write(self.cube2.projectionMatrixBytes)
         self.cube2.shader["colordata"].write(np.array([0,1,0,1]).astype('f4').tobytes())
         
+        
+        self.floor.shader["modelMat"].write(self.floor.modelMatrixBytes)
+        self.floor.shader["cameraMat"].write(self.floor.cameraMatrixBytes)
+        self.floor.shader["projectionMat"].write(self.floor.projectionMatrixBytes)
+        self.floor.shader["colordata"].write(np.array([1,1,1,0]).astype('f4').tobytes())
+        
         self.ctx.screen.use()
         
         self.ctx.screen.clear(0.0, 0.0, 0.0, 1.0)
@@ -124,6 +140,7 @@ class Window(mgl_w.WindowConfig):
 
         self.cube.vao.render(mgl.TRIANGLES)
         self.cube2.vao.render(mgl.TRIANGLES)
+        self.floor.vao.render(mgl.TRIANGLES)
     
 
         
