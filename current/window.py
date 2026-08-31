@@ -43,7 +43,7 @@ class Window(mgl_w.WindowConfig):
             self.wnd.keys.S: lambda: self.camera.move_backward(True),
             self.wnd.keys.D: lambda: self.camera.move_right(True),
             self.wnd.keys.LEFT_SHIFT: lambda: self.camera.move_down(True),
-            self.wnd.keys.SPACE: lambda: self.camera.move_up(True)
+            
         }
         
                 # lambda is black magic bro
@@ -53,7 +53,8 @@ class Window(mgl_w.WindowConfig):
             self.wnd.keys.S: lambda: self.camera.move_backward(False),
             self.wnd.keys.D: lambda: self.camera.move_right(False),
             self.wnd.keys.LEFT_SHIFT: lambda: self.camera.move_down(False),
-            self.wnd.keys.SPACE: lambda: self.camera.move_up(False)
+            self.wnd.keys.SPACE: lambda: self.startjump(),
+            self.wnd.keys.NUMBER_1: lambda: self.newRender()
         }
         
         resources.register_program_dir(Path.cwd() / "resources" / "programs")
@@ -96,26 +97,40 @@ class Window(mgl_w.WindowConfig):
         self.floorvbo = self.ctx.buffer(self.floorverts.astype('f4').tobytes())
         self.floorMesh = meshC(self.floorverts , self.floorvbo)
         
-        self.cube = renderObject(self, self.cubeMesh, scalingMtx(0.5,0.5,0.5), positionMtx(2,0,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
-        self.cube2 = renderObject(self, self.cubeMesh, scalingMtx(0.5,0.5,0.5), positionMtx(-2,0,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
+        self.cube = renderObject(self, self.cubeMesh, scalingMtx(10,10,10), positionMtx(-2,5,-5), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
+        self.cube2 = renderObject(self, self.cubeMesh, scalingMtx(10,10,10), positionMtx(-5,5,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
         
-        self.floor = renderObject(self, self.floorMesh, scalingMtx(20,1,20), positionMtx(0,-2,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
+        self.floor = renderObject(self, self.floorMesh, scalingMtx(2000,1,2000), positionMtx(0,0,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
+        # TODO: CHANGE SCALING TO APPLY BEFORE POSITION MATRIX
         
+        self.renders = []
         
         self.wnd.mouse_exclusivity = True
         self.camera.mouse_sensitivity =  1
         self.framelimit = 1/60
         self.movelock = False
-
+        self.jumpend = True
+        self.jumpvel = 0
     def on_render(self, time: float, frametime: float):
         
-        sleeptime = self.framelimit - frametime
-        if sleeptime > 0:
-            timey.sleep(sleeptime)
+        self.sleeptime = self.framelimit - frametime
+        if self.sleeptime > 0:
+            timey.sleep(self.sleeptime)
 
         self.cube.incrementRadians(pitch=math.pi/100, yaw=math.pi/70)
         self.cube2.incrementRadians(pitch=math.pi/70, yaw=math.pi/100)
         
+        
+        for render in self.renders:
+            #render.incrementRadians(pitch=math.pi/50, yaw=math.pi/100)
+            render.shader["modelMat"].write(render.modelMatrixBytes)
+            render.shader["cameraMat"].write(render.cameraMatrixBytes)
+            render.shader["projectionMat"].write(render.projectionMatrixBytes)
+            render.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes()) 
+            
+            
+            
+            
         self.cube.shader["modelMat"].write(self.cube.modelMatrixBytes)
         self.cube.shader["cameraMat"].write(self.cube.cameraMatrixBytes)
         self.cube.shader["projectionMat"].write(self.cube.projectionMatrixBytes)
@@ -131,21 +146,64 @@ class Window(mgl_w.WindowConfig):
         self.floor.shader["modelMat"].write(self.floor.modelMatrixBytes)
         self.floor.shader["cameraMat"].write(self.floor.cameraMatrixBytes)
         self.floor.shader["projectionMat"].write(self.floor.projectionMatrixBytes)
-        self.floor.shader["colordata"].write(np.array([1,1,1,0]).astype('f4').tobytes())
+        self.floor.shader["colordata"].write(np.array([0,0,1,1]).astype('f4').tobytes())
         
         self.ctx.screen.use()
         
         self.ctx.screen.clear(0.0, 0.0, 0.0, 1.0)
         self.ctx.enable(mgl.DEPTH_TEST)
-
+   
+        
         self.cube.vao.render(mgl.TRIANGLES)
         self.cube2.vao.render(mgl.TRIANGLES)
         self.floor.vao.render(mgl.TRIANGLES)
-    
+        
+        for render in self.renders:
+            render.vao.render(mgl.TRIANGLES)
+            
+        self.newRender()
+        self.attemptMove()
 
         
-    
+            
+
+            
+    def startjump(self):
+        if self.jumpvel == 0 and self.jumpend == True and self.camera.position[1] <= self.floor.positionMatrix.y + 3.1 :  
+            self.jump()
+            self.jumpvel = 10
+            self.camera.velocity = 20
+            self.jumpend = False
+            self.camera.move_up(True)
         
+    def attemptMove(self):
+        
+        if self.camera.position[1] < self.floor.positionMatrix.y + 3:
+            self.camera.position[1] = self.floor.positionMatrix.y + 3
+        elif self.camera.position[1] > self.floor.positionMatrix.y + 3:
+            if self.jumpend == False:
+                self.jump()
+            else:
+                self.camera.position[1] = self.camera.position[1] - (15-self.camera.velocity)*self.sleeptime
+            if self.camera.velocity > 5:
+                self.camera.velocity -= 1
+            
+
+            
+    def jump(self):
+        
+        self.jumpvel = 50
+        self.camera.velocity = 5 + self.jumpvel
+        self.jumpvel = 1 - self.jumpvel
+
+        if self.jumpvel < 2:
+            self.jumpvel = 0
+            self.jumpend = True
+            self.camera.move_up(False)
+            
+        
+
+            
         
     def on_mouse_position_event(self, x, y, dx, dy):
         if self.movelock == False:
@@ -185,7 +243,13 @@ class Window(mgl_w.WindowConfig):
         program = programs.load(ProgramDescription(vertex_shader=vertexProgram, fragment_shader=fragmentProgram, compute_shader=computeProgram))
         return program
     
-
+    
+    def newRender(self):
+        
+        self.renders.append(renderObject(self, self.cubeMesh, scalingMtx(5,5,5), positionMtx(self.camera.position[0]+ 10,self.camera.position[1]+ 10,self.camera.position[2]+ 10), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl"))
+        
+        print(len(self.renders) * 4 * 2)
+        
     def importData(self, name, myType):
         dataFile = data.load(DataDescription(path=name, kind=myType))
         return dataFile
