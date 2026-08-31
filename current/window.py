@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import moderngl as mgl
 import moderngl_window as mgl_w
-
+from geometry import triangle
 from moderngl_window import resources
 from moderngl_window.scene import KeyboardCamera
 from moderngl_window.resources import programs, textures, data
@@ -24,7 +24,7 @@ from matricies import (
     rotationMtx,
 )
 
-from model import meshC, modelContainer
+from model import meshC, renderObject
 
 
 
@@ -74,22 +74,31 @@ class Window(mgl_w.WindowConfig):
 
         self.sProgram = self.importProgram("exampleProgram","exampleVertex.glsl","exampleFragment.glsl")
         
-        self.screen = np.array(
-            [-1, 1, 0],
-            [-1, -1, 0],
-            [1, -1, 0]
-            )
-        self.myquad = np.array(
-            [-1, 1, 0],
-            [-1, -1, 0],
-            [1, -1, 0]
-            )
-
-        highVerts = self.myquad.triHigh[:3].T
-        lowVerts = self.myquad.triLow[:3].T
         
-        self.worldVert = np.vstack((highVerts, lowVerts))
-        self.screenVertices = np.asarray(self.worldVert)
+        triangle1 = triangle([-1, -1,  1, 1], [ 1, -1,  1, 1], [ 1,  1,  1, 1])
+        triangle2 = triangle([-1, -1,  1, 1], [ 1,  1,  1, 1], [-1,  1,  1, 1])
+
+        triangle3 = triangle([-1, -1, -1, 1], [-1,  1, -1, 1], [ 1,  1, -1, 1])
+        triangle4 = triangle([-1, -1, -1, 1], [ 1,  1, -1, 1], [ 1, -1, -1, 1])
+
+        triangle5 = triangle([-1, -1, -1, 1], [-1, -1,  1, 1], [-1,  1,  1, 1])
+        triangle6 = triangle([-1, -1, -1, 1], [-1,  1,  1, 1], [-1,  1, -1, 1])
+
+        triangle7 = triangle([ 1, -1, -1, 1], [ 1,  1, -1, 1], [ 1,  1,  1, 1])
+        triangle8 = triangle([ 1, -1, -1, 1], [ 1,  1,  1, 1], [ 1, -1,  1, 1])
+
+        triangle9 = triangle([-1,  1, -1, 1], [-1,  1,  1, 1], [ 1,  1,  1, 1])
+        triangle10 = triangle([-1,  1, -1, 1], [ 1,  1,  1, 1], [ 1,  1, -1, 1])
+
+        triangle11 = triangle([-1, -1, -1, 1], [ 1, -1, -1, 1], [ 1, -1,  1, 1])
+        triangle12 = triangle([-1, -1, -1, 1], [ 1, -1,  1, 1], [-1, -1,  1, 1])
+        
+        self.verts = np.array([
+            *triangle1.vertices,*triangle2.vertices,*triangle3.vertices,*triangle4.vertices,
+            *triangle5.vertices,*triangle6.vertices,*triangle7.vertices,*triangle8.vertices,
+            *triangle9.vertices,*triangle10.vertices,*triangle11.vertices,*triangle12.vertices])
+        
+        self.screenVertices = self.verts
         self.vbo = self.ctx.buffer(self.screenVertices.astype('f4').tobytes())
         self.vao = self.ctx.simple_vertex_array(self.sProgram, self.vbo, 'in_vert')
         
@@ -102,8 +111,8 @@ class Window(mgl_w.WindowConfig):
 
 
     def on_render(self, time: float, frametime: float):
-        self.rotateX(p=math.pi/1024)
-        self.rotateY(y=math.pi/1024)
+        self.rotateX(p=math.pi/2048)
+        self.rotateY(y=math.pi/2048)
         
 
         self.sProgram["modelMat"].write(self.mainMatrix.transpose().astype('f4').tobytes())
@@ -112,8 +121,8 @@ class Window(mgl_w.WindowConfig):
         self.ctx.program
         self.ctx.screen.use()
         
-    
         self.ctx.screen.clear(0.0, 0.0, 0.0, 1.0)
+        self.ctx.enable(mgl.DEPTH_TEST)
         self.vao.render(mgl.TRIANGLES)
         
         
@@ -122,8 +131,6 @@ class Window(mgl_w.WindowConfig):
         self.mousePos = (x,y)
 
     def on_key_event(self, key, action, modifiers):
-        amspecial = False
-        
         if action == self.wnd.keys.ACTION_PRESS:
             function = self.actionDict.get(key)
             if function != None:
