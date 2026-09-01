@@ -1,7 +1,7 @@
 import numpy as np
 import math
 
-from matricies import scalingMtx, positionMtx, rotationMtx
+from matricies import modelmatrix
 
 
 
@@ -27,7 +27,7 @@ class renderObject:
 
     @property
     def modelMatrix(self):
-        return (self.positionMatrix @ self.rotationMatrix) @ self.scaleMatrix.mtx
+        return self.modelMatrixObject.matrix
 
     @property
     def cameraMatrix(self):
@@ -49,14 +49,12 @@ class renderObject:
     def cameraMatrixBytes(self):
         return self.window.camera.matrix
 
-    def __init__(self, window: "Window", imesh: meshC, scaleMatrix: scalingMtx, positionMatrix: positionMtx, rotationMatrix: rotationMtx, vertexProgram: str, fragmentProgram: str, computeProgram: str | None = None):
+    def __init__(self, window: "Window", mesh: meshC, modelMatrixObject: modelmatrix, vertexProgram: str, fragmentProgram: str, computeProgram: str | None = None):
         self.window = window
         self.ctx = window.ctx
-        self.mesh = imesh
+        self.mesh = mesh
 
-        self.positionMatrix = positionMatrix
-        self.scaleMatrix = scaleMatrix
-        self.rotationMatrix = rotationMatrix
+        self.modelTransformObject = modelMatrixObject
 
         self.vertexProgram = vertexProgram
         self.fragmentProgram = fragmentProgram
@@ -88,57 +86,66 @@ class renderObject:
         Set the models exact scale in (x,y,z) directions
         """
         if x != None:
-            self.scaleMatrix.x = x
+            self.modelTransformObject.updateScaleX(x)
         if y != None:
-            self.scaleMatrix.y = y
+            self.modelTransformObject.updateScaleY(y)
         if z != None:
-            self.scaleMatrix.z = z
+            self.modelTransformObject.updateScaleX(z)
 
     def incrementScale(self, x=0, y=0, z=0):
         """
         Increase/Decrease the models current scale in (x,y,z) directions
         """
-        self.scaleMatrix.x += x
-        self.scaleMatrix.y += y
-        self.scaleMatrix.z += z
+        if x != None:
+            self.modelTransformObject.updateScaleX(x + self.modelTransformObject.__scale.xScale)
+        if y != None:
+            self.modelTransformObject.updateScaleY(z + self.modelTransformObject.__scale.yScale)
+        if z != None:
+            self.modelTransformObject.updateScaleZ(z + self.modelTransformObject.__scale.zScale)
 
     def setRadians(self, pitch=None, yaw=None, roll=None):
         """
         Set the models exact rotation in (p,y,r) radians
         """
         if pitch != None:
-            self.rotationMatrix.pitch.radians = pitch
+            self.modelTransformObject.updatePitch(pitch)
         if yaw != None:
-            self.rotationMatrix.yaw.radians = yaw
+            self.modelTransformObject.updateYaw(yaw)
         if roll != None:
-            self.rotationMatrix.roll.radians = roll
+            self.modelTransformObject.updateRoll(roll)
 
     def incrementRadians(self, pitch=0, yaw=0, roll=0):
         """
         Increase/Decrease the models current rotation in (p,y,r) radians
         """
-        self.rotationMatrix.pitch.radians = (self.rotationMatrix.pitch.radians + pitch) % (2 * math.pi)
-        self.rotationMatrix.yaw.radians = (self.rotationMatrix.yaw.radians + yaw) % (2 * math.pi)
-        self.rotationMatrix.roll.radians = (self.rotationMatrix.roll.radians + roll) % (2 * math.pi)
+        if pitch != None:
+            self.modelTransformObject.updatePitch(pitch + self.modelTransformObject.__rotation.pitch)
+        if yaw != None:
+            self.modelTransformObject.updateYaw(yaw + self.modelTransformObject.__rotation.yaw)
+        if roll != None:
+            self.modelTransformObject.updateRoll(roll + self.modelTransformObject.__rotation.roll)
 
     def setPosition(self, x=None, y=None, z=None):
         """
         Set the models exact position in world (x,y,z)
         """
         if x != None:
-            self.positionMatrix.x = x
+            self.modelTransformObject.updateLocalX(x)
         if y != None:
-            self.positionMatrix.y = y
+            self.modelTransformObject.updateLocalY(y)
         if z != None:
-            self.positionMatrix.z = z
+            self.modelTransformObject.updateLocalZ(z)
 
     def incrementPosition(self, x=0, y=0, z=0):
         """
         Increase/Decrease the models current position in world (x,y,z)
         """
-        self.positionMatrix.x += x
-        self.positionMatrix.y += y
-        self.positionMatrix.z += z
+        if x != None:
+            self.modelTransformObject.updateLocalX(x + self.modelTransformObject.__position.xPosition)
+        if y != None:
+            self.modelTransformObject.updateLocalY(y + self.modelTransformObject.__position.yPosition)
+        if z != None:
+            self.modelTransformObject.updateLocalZ(z + self.modelTransformObject.__position.zPosition)
 
     def release(self):
         if self.vao != None:

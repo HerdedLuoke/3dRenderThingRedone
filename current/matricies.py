@@ -44,13 +44,25 @@ class scale:
 
 
 @dataclass(slots=True)
-class model:
+class modelmatrix:
+    @property
+    def xPosition(self) -> float:
+        return self.__position.xPosition
+
+    @property
+    def yPosition(self) -> float:
+        return self.__position.yPosition
+
+    @property
+    def zPosition(self) -> float:
+        return self.__position.zPosition
+    
     __position: position
     __rotation: rotation
     __scale: scale
 
     @property
-    def modelMatrix(self) -> NDArray:
+    def matrix(self) -> NDArray:
         """Container for the position, rotation and scale data"""
         # im so glad ive stopped storing random shit as self. wtf was i doing
         # everything is just stored here and used to OUTPUT a matrix based on the inputs. 
@@ -58,6 +70,7 @@ class model:
         # i stored repeated stuff in the formula to save .000000001 seconds :3
         # using the formula is also better as it gives more consistent results since matrix mult is not communitive (i think thats the term)
         
+
         xPosition = self.__position.xPosition
         yPosition = self.__position.yPosition
         zPosition = self.__position.zPosition

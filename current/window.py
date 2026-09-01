@@ -10,11 +10,9 @@ from moderngl_window.scene import KeyboardCamera
 from moderngl_window.resources import programs, textures, data
 from moderngl_window.meta import (TextureDescription, ProgramDescription, DataDescription)
 
-from matricies import (scalingMtx, positionMtx, pitchMtx, yawMtx, rollMtx, rotationMtx)
+from matricies import modelmatrix, position, rotation, pitch, yaw, roll, scale
 
 from model import meshC, renderObject
-
-
 
 
 
@@ -54,7 +52,7 @@ class Window(mgl_w.WindowConfig):
             self.wnd.keys.D: lambda: self.camera.move_right(False),
             self.wnd.keys.LEFT_SHIFT: lambda: self.camera.move_down(False),
             self.wnd.keys.SPACE: lambda: self.startjump(),
-            self.wnd.keys.NUMBER_1: lambda: self.newRender()
+
         }
         
         resources.register_program_dir(Path.cwd() / "resources" / "programs")
@@ -91,17 +89,31 @@ class Window(mgl_w.WindowConfig):
         self.cubeMesh = meshC(self.cubeVertices, self.cubevbo)
         
         triangle100 = triangle([-1, -1,  1, 1], [ 1, -1,  1, 1], [ 1,  -1, -1, 1])
-        triangle200 = triangle([-1, -1,  1, 1], [-1, -1, -1, 1], [ 1,  -1,  -1, 1])
+        triangle200 = triangle([-1, -1,  1, 1], [-1, -1, -1, 1], [ 1,  -1, -1, 1])
         
         self.floorverts = np.array([*triangle100.vertices, *triangle200.vertices,])
         self.floorvbo = self.ctx.buffer(self.floorverts.astype('f4').tobytes())
         self.floorMesh = meshC(self.floorverts , self.floorvbo)
         
-        self.cube = renderObject(self, self.cubeMesh, scalingMtx(10,10,10), positionMtx(-2,5,-5), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
-        self.cube2 = renderObject(self, self.cubeMesh, scalingMtx(10,10,10), positionMtx(-5,5,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
         
-        self.floor = renderObject(self, self.floorMesh, scalingMtx(2000,1,2000), positionMtx(0,0,-2), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl")
-        # TODO: CHANGE SCALING TO APPLY BEFORE POSITION MATRIX
+        self.cubeModelMatrix = modelmatrix(
+            position(-2,5,-5),
+            rotation(pitch(0), yaw(0), roll(0)),
+            scale(10,10,10)
+        )
+        
+        self.floorModelMatrix = modelmatrix(
+            position(0,0,-2),
+            rotation(pitch(0), yaw(0), roll(0)),
+            scale(2000,1,2000)
+        )
+        
+        
+        
+        self.cube = renderObject(self, self.cubeMesh, self.cubeModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
+        self.cube2 = renderObject(self, self.cubeMesh, self.cubeModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
+        
+        self.floor = renderObject(self, self.floorMesh, self.floorModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
         
         self.renders = []
         
@@ -111,19 +123,25 @@ class Window(mgl_w.WindowConfig):
         self.movelock = False
         self.jumpend = True
         self.jumpvel = 0
+        self.i = 0
+        
     def on_render(self, time: float, frametime: float):
         
         self.sleeptime = self.framelimit - frametime
         if self.sleeptime > 0:
             timey.sleep(self.sleeptime)
 
-        self.cube.incrementRadians(pitch=math.pi/100, yaw=math.pi/70)
-        self.cube2.incrementRadians(pitch=math.pi/70, yaw=math.pi/100)
+        self.net = np.array([math.pi/90, math.pi/90]) + self.i*np.array([math.pi/90, math.pi/90])
+
+        self.cube.modelTransformObject.updatePitch(self.net[0])
+        self.cube.modelTransformObject.updateYaw(self.net[1])
+
+        self.i += 1
         
         
+        render: renderObject
         for render in self.renders:
-            #render.incrementRadians(pitch=math.pi/50, yaw=math.pi/100)
-            render.shader["modelMat"].write(render.modelMatrixBytes)
+            render.shader["modelMat"].write(render.modelTransformObject.byteForm(render.modelTransformObject.matrix))
             render.shader["cameraMat"].write(render.cameraMatrixBytes)
             render.shader["projectionMat"].write(render.projectionMatrixBytes)
             render.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes()) 
@@ -131,19 +149,19 @@ class Window(mgl_w.WindowConfig):
             
             
             
-        self.cube.shader["modelMat"].write(self.cube.modelMatrixBytes)
+        self.cube.shader["modelMat"].write(self.cube.modelTransformObject.byteForm(self.cube.modelTransformObject.matrix))
         self.cube.shader["cameraMat"].write(self.cube.cameraMatrixBytes)
         self.cube.shader["projectionMat"].write(self.cube.projectionMatrixBytes)
         self.cube.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes()) 
         # TODO: ^ this should be sent with the vao since it doesnt change
-        
-        self.cube2.shader["modelMat"].write(self.cube2.modelMatrixBytes)
+
+        self.cube2.shader["modelMat"].write(self.cube2.modelTransformObject.byteForm(self.cube2.modelTransformObject.matrix))
         self.cube2.shader["cameraMat"].write(self.cube2.cameraMatrixBytes)
         self.cube2.shader["projectionMat"].write(self.cube2.projectionMatrixBytes)
         self.cube2.shader["colordata"].write(np.array([0,1,0,1]).astype('f4').tobytes())
         
         
-        self.floor.shader["modelMat"].write(self.floor.modelMatrixBytes)
+        self.floor.shader["modelMat"].write(self.floor.modelTransformObject.byteForm(self.floor.modelTransformObject.matrix))
         self.floor.shader["cameraMat"].write(self.floor.cameraMatrixBytes)
         self.floor.shader["projectionMat"].write(self.floor.projectionMatrixBytes)
         self.floor.shader["colordata"].write(np.array([0,0,1,1]).astype('f4').tobytes())
@@ -161,7 +179,6 @@ class Window(mgl_w.WindowConfig):
         for render in self.renders:
             render.vao.render(mgl.TRIANGLES)
             
-        # self.newRender()
         self.attemptMove()
 
         
@@ -169,7 +186,8 @@ class Window(mgl_w.WindowConfig):
 
             
     def startjump(self):
-        if self.jumpvel == 0 and self.jumpend == True and self.camera.position[1] <= self.floor.positionMatrix.y + 3.1 :  
+        
+        if self.jumpvel == 0 and self.jumpend == True and self.camera.position[1] <= self.floor.modelTransformObject.yPosition + 3.1 :  
             self.jump()
             self.jumpvel = 10
             self.camera.velocity = 20
@@ -178,13 +196,15 @@ class Window(mgl_w.WindowConfig):
         
     def attemptMove(self):
         
-        if self.camera.position[1] < self.floor.positionMatrix.y + 3:
-            self.camera.position[1] = self.floor.positionMatrix.y + 3
-        elif self.camera.position[1] > self.floor.positionMatrix.y + 3:
+        if self.camera.position[1] < self.floor.modelTransformObject.yPosition + 3:
+            self.camera.position[1] = self.floor.modelTransformObject.yPosition + 3
+
+        elif self.camera.position[1] > self.floor.modelTransformObject.yPosition + 3:
             if self.jumpend == False:
                 self.jump()
             else:
                 self.camera.position[1] = self.camera.position[1] - (15-self.camera.velocity)*self.sleeptime
+
             if self.camera.velocity > 5:
                 self.camera.velocity -= 1
             
@@ -212,9 +232,6 @@ class Window(mgl_w.WindowConfig):
             
         
         
-        
-
-
     def on_key_event(self, key, action, modifiers):
         if action == self.wnd.keys.ACTION_PRESS:
             function = self.actionDict.get(key)
@@ -244,11 +261,7 @@ class Window(mgl_w.WindowConfig):
         return program
     
     
-    def newRender(self):
-        
-        self.renders.append(renderObject(self, self.cubeMesh, scalingMtx(5,5,5), positionMtx(self.camera.position[0]+ 10,self.camera.position[1]+ 10,self.camera.position[2]+ 10), rotationMtx(pitchMtx(0), yawMtx(0), rollMtx(0)), "exampleVertex.glsl", "exampleFragment.glsl"))
-        
-        print(len(self.renders) * 4 * 2)
+
         
     def importData(self, name, myType):
         dataFile = data.load(DataDescription(path=name, kind=myType))
@@ -258,17 +271,3 @@ class Window(mgl_w.WindowConfig):
     def importTexture(self, name, myType):
         texture = textures.load(TextureDescription(path=name, kind=myType))
         return texture
-    
-
-    def moveCube(self, x:float=0, y:float=0, z:float=0):
-        self.cube.incrementPosition(x=x, y=y, z=z)
-        
-    def rotateX(self, p=math.pi/64):
-        self.cube.incrementRadians(pitch=p)
-
-
-    def rotateY(self, y=math.pi/64):
-        self.cube.incrementRadians(yaw=y)
-
-    def rotateZ(self, r=math.pi/64):
-        self.cube.incrementRadians(roll=r)
