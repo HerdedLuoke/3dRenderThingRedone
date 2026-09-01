@@ -1,12 +1,13 @@
-import numpy as np
-import math
-
 from matricies import modelmatrix
 
 
 
 
+
+
+
 class meshC:
+
     """
     Contains the vbo and verts for an object
     (also uv/textures once i get there)
@@ -19,139 +20,162 @@ class meshC:
         self.vbo = vbo
 
 
+
 class renderObject:
+
     """
     Contains the mesh data for an object, as well as its associated transformations.
     Also contains its own shader and vao.
     """
 
-    @property
-    def modelMatrix(self):
-        return self.modelMatrixObject.matrix
+    @property 
+    def xpos(self): 
+        return self.__modelTransformObject.xPosition 
+
+    @property 
+    def ypos(self): 
+        return self.__modelTransformObject.yPosition 
+
+    @property 
+    def zpos(self): 
+        return self.__modelTransformObject.zPosition 
+
 
     @property
-    def cameraMatrix(self):
-        return np.frombuffer(self.window.camera.matrix, dtype="f4").reshape((4,4))
+    def xscale(self): 
+        return self.__modelTransformObject.xScale 
 
     @property
-    def projectionMatrix(self):
-        return self.window.camera.projection
+    def yscale(self): 
+        return self.__modelTransformObject.yScale 
 
     @property
-    def projectionMatrixBytes(self):
-        return self.window.camera.projection.tobytes()
+    def zscale(self): 
+        return self.__modelTransformObject.zScale 
+
+
+    @property
+    def pitch(self): 
+        return self.__modelTransformObject.pitch 
+
+    @property
+    def yaw(self): 
+        return self.__modelTransformObject.yaw 
+
+    @property
+    def roll(self): 
+        return self.__modelTransformObject.roll
+
+
+
+    @property
+    def shader(self):
+        return self.__shader
+
+    @property
+    def vao(self):
+        return self.__vao
+
+
 
     @property
     def modelMatrixBytes(self):
-        return self.modelMatrix.transpose().astype("f4").tobytes()
-
+        matrix = self.__modelTransformObject.matrix
+        return self.__modelTransformObject.byteForm(matrix)
     @property
-    def cameraMatrixBytes(self):
-        return self.window.camera.matrix
+    def modelMatrix(self):
+        return self.__modelTransformObject.matrix
 
-    def __init__(self, window: "Window", mesh: meshC, modelMatrixObject: modelmatrix, vertexProgram: str, fragmentProgram: str, computeProgram: str | None = None):
-        self.window = window
-        self.ctx = window.ctx
-        self.mesh = mesh
 
-        self.modelTransformObject = modelMatrixObject
+    def __init__(self, window, mesh: meshC, modelMatrixObject: modelmatrix, vertexProgram: str, fragmentProgram: str, computeProgram: str | None = None):
 
-        self.vertexProgram = vertexProgram
-        self.fragmentProgram = fragmentProgram
-        self.computeProgram = computeProgram
+        self.__window = window
+        self.__vbo = mesh.vbo
+        self.__modelTransformObject = modelMatrixObject
 
-        self.shader = None
-        self.vao = None
+        self.__shader = None
+        self.__vao = None
 
-        self.shaderUpdate()
+        self.instanceShader(vertexProgram, fragmentProgram, computeProgram)
 
-    def shaderUpdate(self):
+
+
+    def instanceShader(self, vertexProgram: str, fragmentProgram: str, computeProgram: str | None = None):
+
         """
-        Reload this objects shader and regenerate its vao.
+        Instance this objects shader and regenerate its vao.
         """
 
-        if self.vao != None:
-            self.vao.release()
+        if self.__vao != None:
+            self.__vao.release()
 
-        if self.shader != None:
-            self.shader.release()
+        if self.__shader != None:
+            self.__shader.release()
 
         # my first memory leak resulted in me learning to release resources! yay!
 
-        self.shader = self.window.importProgram(self.vertexProgram, self.fragmentProgram, self.computeProgram)
-        self.vao = self.ctx.simple_vertex_array(self.shader, self.mesh.vbo, "in_vert")
+        self.__shader = self.__window.importProgram(vertexProgram, fragmentProgram, computeProgram)
+        self.__vao = self.__window.ctx.simple_vertex_array(self.__shader, self.__vbo, "in_vert")
+
+
 
     def setScale(self, x=None, y=None, z=None):
+
         """
         Set the models exact scale in (x,y,z) directions
         """
-        if x != None:
-            self.modelTransformObject.updateScaleX(x)
-        if y != None:
-            self.modelTransformObject.updateScaleY(y)
-        if z != None:
-            self.modelTransformObject.updateScaleX(z)
 
-    def incrementScale(self, x=0, y=0, z=0):
-        """
-        Increase/Decrease the models current scale in (x,y,z) directions
-        """
         if x != None:
-            self.modelTransformObject.updateScaleX(x + self.modelTransformObject.__scale.xScale)
+            self.__modelTransformObject.updateScaleX(x)
+
         if y != None:
-            self.modelTransformObject.updateScaleY(z + self.modelTransformObject.__scale.yScale)
+            self.__modelTransformObject.updateScaleY(y)
+
         if z != None:
-            self.modelTransformObject.updateScaleZ(z + self.modelTransformObject.__scale.zScale)
+            self.__modelTransformObject.updateScaleZ(z)
+
+
 
     def setRadians(self, pitch=None, yaw=None, roll=None):
+
         """
         Set the models exact rotation in (p,y,r) radians
         """
-        if pitch != None:
-            self.modelTransformObject.updatePitch(pitch)
-        if yaw != None:
-            self.modelTransformObject.updateYaw(yaw)
-        if roll != None:
-            self.modelTransformObject.updateRoll(roll)
 
-    def incrementRadians(self, pitch=0, yaw=0, roll=0):
-        """
-        Increase/Decrease the models current rotation in (p,y,r) radians
-        """
         if pitch != None:
-            self.modelTransformObject.updatePitch(pitch + self.modelTransformObject.__rotation.pitch)
+            self.__modelTransformObject.updatePitch(pitch)
+
         if yaw != None:
-            self.modelTransformObject.updateYaw(yaw + self.modelTransformObject.__rotation.yaw)
+            self.__modelTransformObject.updateYaw(yaw)
+
         if roll != None:
-            self.modelTransformObject.updateRoll(roll + self.modelTransformObject.__rotation.roll)
+            self.__modelTransformObject.updateRoll(roll)
+
+
 
     def setPosition(self, x=None, y=None, z=None):
+
         """
         Set the models exact position in world (x,y,z)
         """
-        if x != None:
-            self.modelTransformObject.updateLocalX(x)
-        if y != None:
-            self.modelTransformObject.updateLocalY(y)
-        if z != None:
-            self.modelTransformObject.updateLocalZ(z)
 
-    def incrementPosition(self, x=0, y=0, z=0):
-        """
-        Increase/Decrease the models current position in world (x,y,z)
-        """
         if x != None:
-            self.modelTransformObject.updateLocalX(x + self.modelTransformObject.__position.xPosition)
+            self.__modelTransformObject.updateLocalX(x)
+
         if y != None:
-            self.modelTransformObject.updateLocalY(y + self.modelTransformObject.__position.yPosition)
+            self.__modelTransformObject.updateLocalY(y)
+
         if z != None:
-            self.modelTransformObject.updateLocalZ(z + self.modelTransformObject.__position.zPosition)
+            self.__modelTransformObject.updateLocalZ(z)
+
+
 
     def release(self):
-        if self.vao != None:
-            self.vao.release()
-            self.vao = None
 
-        if self.shader != None:
-            self.shader.release()
-            self.shader = None
+        if self.__vao != None:
+            self.__vao.release()
+            self.__vao = None
+
+        if self.__shader != None:
+            self.__shader.release()
+            self.__shader = None
