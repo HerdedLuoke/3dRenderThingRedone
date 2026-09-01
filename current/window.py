@@ -96,13 +96,13 @@ class Window(mgl_w.WindowConfig):
         self.floorMesh = meshC(self.floorverts , self.floorvbo)
         
         
-        self.cubeModelMatrix = modelmatrix(
+        cubeModelMatrix = modelmatrix(
             position(-2,5,-5),
             rotation(pitch(0), yaw(0), roll(0)),
             scale(10,10,10)
         )
         
-        self.floorModelMatrix = modelmatrix(
+        floorModelMatrix = modelmatrix(
             position(0,0,-2),
             rotation(pitch(0), yaw(0), roll(0)),
             scale(2000,1,2000)
@@ -110,10 +110,10 @@ class Window(mgl_w.WindowConfig):
         
         
         
-        self.cube = renderObject(self, self.cubeMesh, self.cubeModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
-        self.cube2 = renderObject(self, self.cubeMesh, self.cubeModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
+        self.cube = renderObject(self, self.cubeMesh, cubeModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
+        self.cube2 = renderObject(self, self.cubeMesh, cubeModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
         
-        self.floor = renderObject(self, self.floorMesh, self.floorModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
+        self.floor = renderObject(self, self.floorMesh, floorModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
         
         self.renders = []
         
@@ -125,30 +125,45 @@ class Window(mgl_w.WindowConfig):
         self.jumpvel = 0
         self.i = 0
         
+        
+        evilModelMatrix = modelmatrix(
+            position(self.camera.position[0],self.camera.position[1],self.camera.position[2]),
+            rotation(pitch(0), yaw(0), roll(0)),
+            scale(3,3,3)
+        )
+        
+        
+        
+        self.render = renderObject(self, self.cubeMesh, evilModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
+        
     def on_render(self, time: float, frametime: float):
-        print("Last frametime: ") 
-        print(frametime)
+        
+        
         
         self.sleeptime = self.framelimit - frametime
         if self.sleeptime > 0:
             timey.sleep(self.sleeptime)
-
+            print("Total extra verts: ") 
+            print(np.size(self.render.mesh.vertices))
+            print("Last frametime: ") 
+            print(frametime)
+            self.addRender()
+        
         self.net = np.array([math.pi/90, math.pi/90]) + self.i*np.array([math.pi/90, math.pi/90])
 
         self.cube.modelTransformObject.updatePitch(self.net[0])
         self.cube.modelTransformObject.updateYaw(self.net[1])
-
+        self.render.modelTransformObject.updatePitch(self.net[0])
+        self.render.modelTransformObject.updateYaw(self.net[1])
         self.i += 1
         
-        self.addRender()
-        render: renderObject
-        for render in self.renders:
-            render.shader["modelMat"].write(render.modelTransformObject.byteForm(render.modelTransformObject.matrix))
-            render.shader["cameraMat"].write(render.cameraMatrixBytes)
-            render.shader["projectionMat"].write(render.projectionMatrixBytes)
-            render.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes())
-        print("Total extra renders: ") 
-        print(len(self.renders))
+        
+        self.render.shader["modelMat"].write(self.render.modelTransformObject.byteForm(self.render.modelTransformObject.matrix))
+        self.render.shader["cameraMat"].write(self.render.cameraMatrixBytes)
+        self.render.shader["projectionMat"].write(self.render.projectionMatrixBytes)
+        self.render.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes())
+            
+
         
         
 
@@ -183,22 +198,14 @@ class Window(mgl_w.WindowConfig):
         self.cube2.vao.render(mgl.TRIANGLES)
         self.floor.vao.render(mgl.TRIANGLES)
         
-        for render in self.renders:
-            render.vao.render(mgl.TRIANGLES)
+
+        self.render.vao.render(mgl.TRIANGLES)
             
         self.attemptMove()
 
         
-    def addRender(self):  
-        evilModelMatrix = modelmatrix(
-            position(self.camera.position[0],self.camera.position[1],self.camera.position[2]),
-            rotation(pitch(0), yaw(0), roll(0)),
-            scale(3,3,3)
-        )
-        
-        
-        
-        self.renders.append(renderObject(self, self.cubeMesh, evilModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl"))
+    def addRender(self): 
+        self.render.mesh.vertices =  np.array([*self.render.mesh.vertices, *self.cubeVertices], dtype=np.float32) 
 
             
     def startjump(self):
