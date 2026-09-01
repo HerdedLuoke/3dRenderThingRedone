@@ -126,6 +126,8 @@ class Window(mgl_w.WindowConfig):
         self.i = 0
         
     def on_render(self, time: float, frametime: float):
+        print("Last frametime: ") 
+        print(frametime)
         
         self.sleeptime = self.framelimit - frametime
         if self.sleeptime > 0:
@@ -138,13 +140,18 @@ class Window(mgl_w.WindowConfig):
 
         self.i += 1
         
-        
+        self.addRender()
         render: renderObject
         for render in self.renders:
             render.shader["modelMat"].write(render.modelTransformObject.byteForm(render.modelTransformObject.matrix))
             render.shader["cameraMat"].write(render.cameraMatrixBytes)
             render.shader["projectionMat"].write(render.projectionMatrixBytes)
-            render.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes()) 
+            render.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes())
+        print("Total extra renders: ") 
+        print(len(self.renders))
+        
+        
+
             
             
             
@@ -182,7 +189,16 @@ class Window(mgl_w.WindowConfig):
         self.attemptMove()
 
         
-            
+    def addRender(self):  
+        evilModelMatrix = modelmatrix(
+            position(self.camera.position[0],self.camera.position[1],self.camera.position[2]),
+            rotation(pitch(0), yaw(0), roll(0)),
+            scale(3,3,3)
+        )
+        
+        
+        
+        self.renders.append(renderObject(self, self.cubeMesh, evilModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl"))
 
             
     def startjump(self):
