@@ -5,7 +5,8 @@ from dataclasses import dataclass
 
 
 
-
+# these could be moved into a larger class and i prob should but erm these used to be WAY bigger and got this tiny as
+# i slowly neutered their features and now theyre just radians dawg
 @dataclass(slots=True)
 class pitch:
     radians: float
