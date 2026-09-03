@@ -39,6 +39,7 @@ class Window(mgl_w.WindowConfig):
             self.wnd.keys.S: lambda: self.camera.move_backward(True),
             self.wnd.keys.D: lambda: self.camera.move_right(True),
             self.wnd.keys.LEFT_SHIFT: lambda: self.camera.move_down(True),
+            self.wnd.keys.NUMBER_1: lambda: self.deform(),
         }
         
         # lambda is black magic bro
@@ -48,7 +49,7 @@ class Window(mgl_w.WindowConfig):
             self.wnd.keys.S: lambda: self.camera.move_backward(False),
             self.wnd.keys.D: lambda: self.camera.move_right(False),
             self.wnd.keys.LEFT_SHIFT: lambda: self.camera.move_down(False),
-            self.wnd.keys.SPACE: lambda: self.startjump(),
+
         }
         
         resources.register_program_dir(Path.cwd() / "resources" / "programs")
@@ -85,6 +86,9 @@ class Window(mgl_w.WindowConfig):
         triangle100 = triangle([-1, -1,  1, 1], [ 1, -1,  1, 1], [ 1, -1, -1, 1])
         triangle200 = triangle([-1, -1,  1, 1], [-1, -1, -1, 1], [ 1, -1, -1, 1])
         
+        self.triangle = triangle([-1, -1,  1, 1], [ 1, -1,  1, 1], [ 1, -1, -1, 1])
+
+        
         self.floorverts = np.array([*triangle100.vertices, *triangle200.vertices])
         self.floorvbo = self.ctx.buffer(self.floorverts.astype('f4').tobytes())
         self.floorMesh = meshC(self.floorverts, self.floorvbo)
@@ -93,12 +97,25 @@ class Window(mgl_w.WindowConfig):
         cubeModelMatrix =  modelmatrix(position(-10,10,-2), rotation(pitch(0), yaw(0), roll(0)), scale(10,10,10))
         cube2ModelMatrix = modelmatrix(position(-2,10,-10), rotation(pitch(0), yaw(0), roll(0)), scale(10,10,10))
 
-        floorModelMatrix = modelmatrix(position(0,0,-2), rotation(pitch(0), yaw(0), roll(0)), scale(2000,1,2000))
+
+
+        tileSize = 1
+        xScale, yScale = tileSize/2,tileSize/2
+        
+        floorModelMatrix = modelmatrix(position(0,0,0), rotation(pitch(0), yaw(0), roll(0)), scale(xScale,1,yScale))
+        tileModelMatrix = modelmatrix(position(tileSize,0,0), rotation(pitch(0), yaw(0), roll(0)), scale(xScale,1,yScale))
+        tile2ModelMatrix = modelmatrix(position(-tileSize,0,0), rotation(pitch(0), yaw(0), roll(0)), scale(xScale,1,yScale))
+        tile3ModelMatrix = modelmatrix(position(0,0,tileSize), rotation(pitch(0), yaw(0), roll(0)), scale(xScale,1,yScale))
+        tile4ModelMatrix = modelmatrix(position(0,0,-tileSize), rotation(pitch(0), yaw(0), roll(0)), scale(xScale,1,yScale))
         
         self.cube = renderObject(self, self.cubeMesh, cubeModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
         self.cube2 = renderObject(self, self.cubeMesh, cube2ModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
         self.floor = renderObject(self, self.floorMesh, floorModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
-        
+        self.tile = renderObject(self, self.floorMesh, tileModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
+        self.tile2 = renderObject(self, self.floorMesh, tile2ModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
+        self.tile3 = renderObject(self, self.floorMesh, tile3ModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")
+        self.tile4 = renderObject(self, self.floorMesh, tile4ModelMatrix, "exampleVertex.glsl", "exampleFragment.glsl")    
+
         self.wnd.mouse_exclusivity = True
         self.camera.mouse_sensitivity = 1
         self.framelimit = 1/60
@@ -118,29 +135,40 @@ class Window(mgl_w.WindowConfig):
         
         self.lastframetime=0
         self.framedrop = 0
+        
+        
+        self.identity = np.identity(4)
+        
+        self.tiles = [self.tile, self.tile2, self.tile3, self.tile4]
+        
+         
     def on_render(self, time: float, frametime: float):
+        debug = True
         self.windowMatrix = np.array(self.camera.projection.matrix * self.camera.matrix)
         
         self.sleeptime = self.framelimit - self.lastframetime
 
-        if  self.sleeptime > 0:
-            if frametime < 0.0001:
-                print("Total extra verts: ") 
-                print(np.size(self.renderVertices))
+        if debug == True:
+            if  self.sleeptime > 0:
+                if frametime < 0.0001:
+                    #print("Total extra verts: ") 
+                    #print(np.size(self.renderVertices))
 
-                print("Last frametime: ") 
-                print(self.lastframetime)
-                self.addRender()
-            else:
-                timey.sleep(self.sleeptime)
-                print("slept: " + str(self.sleeptime))
+                    #print("Last frametime: ") 
+                    #print(self.lastframetime)
+                    #self.addRender()
+                    pass
+                else:
+                    
+                    timey.sleep(self.sleeptime)
+                    #print("slept: " + str(self.sleeptime))
                 
-        else: 
-            print("Dropped Frame: ")
-            self.framedrop += 1
-            print(self.framedrop)
-            print("Dropped frametime: ") 
-            print(self.lastframetime)
+            else: 
+                #print("Dropped Frame: ")
+                self.framedrop += 1
+                #print(self.framedrop)
+                #print("Dropped frametime: ") 
+                #print(self.lastframetime)
 
         
         
@@ -149,12 +177,12 @@ class Window(mgl_w.WindowConfig):
         self.cube.setRadians(pitch=self.net[0], yaw=self.net[1])
         self.cube2.setRadians(pitch=self.net[1], yaw=self.net[0])
         
-        self.render.setRadians(pitch=self.net[0], yaw=self.net[1])
+        #self.render.setRadians(pitch=self.net[0], yaw=self.net[1])
 
         self.i += 1
         
-        self.render.shader["projectionMat"].write((self.windowMatrix @ self.render.modelMatrix).transpose().astype('f4').tobytes())
-        self.render.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes())
+        #self.render.shader["projectionMat"].write((self.windowMatrix @ self.render.modelMatrix).transpose().astype('f4').tobytes())
+        #self.render.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes())
         self.cube.shader["projectionMat"].write((self.windowMatrix @ self.cube.modelMatrix).transpose().astype('f4').tobytes())
         self.cube.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes()) 
         self.cube2.shader["projectionMat"].write((self.windowMatrix @ self.cube2.modelMatrix).transpose().astype('f4').tobytes())
@@ -162,63 +190,80 @@ class Window(mgl_w.WindowConfig):
         self.floor.shader["projectionMat"].write((self.windowMatrix @ self.floor.modelMatrix).transpose().astype('f4').tobytes())
         self.floor.shader["colordata"].write(np.array([0,0,1,1]).astype('f4').tobytes())
         
+        
+        
+        
+        
+        firsttile = 0
+        last = 0
+        
+        
+        
+        
+        
+        
+        for tile in self.tiles:
+            tile.shader["projectionMat"].write((self.windowMatrix @ tile.modelMatrix).transpose().astype('f4').tobytes())
+
+                
+                
+    
+        
+        self.tile.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes())
+        self.tile2.shader["colordata"].write(np.array([1,0,0,1]).astype('f4').tobytes())
+        self.tile3.shader["colordata"].write(np.array([0,1,0,1]).astype('f4').tobytes())
+        self.tile4.shader["colordata"].write(np.array([0,1,0,1]).astype('f4').tobytes())
+        
+        
+        firsttile = 0
         self.ctx.screen.use()
         
         self.ctx.screen.clear(0.0, 0.0, 0.0, 1.0)
         self.ctx.enable(mgl.DEPTH_TEST)
    
-        self.cube.vao.render(mgl.TRIANGLES)
-        self.cube2.vao.render(mgl.TRIANGLES)
+        #self.cube.vao.render(mgl.TRIANGLES)
+        #self.cube2.vao.render(mgl.TRIANGLES)
         self.floor.vao.render(mgl.TRIANGLES)
-        self.render.vao.render(mgl.TRIANGLES)
+        #self.render.vao.render(mgl.TRIANGLES)
+        
+        self.tile.vao.render(mgl.TRIANGLES)
+        self.tile2.vao.render(mgl.TRIANGLES)
+        self.tile3.vao.render(mgl.TRIANGLES)
+        self.tile4.vao.render(mgl.TRIANGLES)
             
-        self.attemptMove()
         self.lastframetime = frametime
-
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+    def deform(self):
+        num = np.dot(np.append((self.camera.dir/np.linalg.norm(np.array(self.camera.dir))),0), self.triangle.directionV)
+        print(num)
+        if num >= -1 and num <= 0.1:
         
-    def addRender(self):
-        self.renderVertices = np.array([*self.renderVertices, *self.cubeVertices], dtype=np.float32)
-        self.renderMesh.vertices = self.renderVertices
-
-
-
+            self.floor.setPosition(y=self.tile.ypos-0.5) 
+            #print("secondary")
+            #print(self.camera.dir)
+            self.floor.shader["projectionMat"].write((self.windowMatrix @ self.tile.modelMatrix).transpose().astype('f4').tobytes())
+            #self.tile.setPosition(y=self.tile.ypos+0.5) 
+        elif num <= 1.0 and num >= -0.1:
+            self.floor.setPosition(y=self.tile.ypos+0.5)  
+            #print("secondary")
+            #print(self.camera.dir)
+            self.floor.shader["projectionMat"].write((self.windowMatrix @ self.tile.modelMatrix).transpose().astype('f4').tobytes())
             
-    def startjump(self):
-        
-        if self.jumpvel == 0 and self.jumpend == True and self.camera.position[1] <= self.floor.ypos + 3.1:
-            self.jump()
-            self.jumpvel = 10
-            self.camera.velocity = 20
-            self.jumpend = False
-            self.camera.move_up(True)
-        
-
-    def attemptMove(self):
-        
-        if self.camera.position[1] < self.floor.ypos + 3:
-            self.camera.position[1] = self.floor.ypos + 3
-
-        elif self.camera.position[1] > self.floor.ypos + 3:
-            if self.jumpend == False:
-                self.jump()
-            else:
-                self.camera.position[1] = self.camera.position[1] - (15-self.camera.velocity)*self.sleeptime
-
-            if self.camera.velocity > 5:
-                self.camera.velocity -= 1
-            
-
-    def jump(self):
-        
-        self.jumpvel = 50
-        self.camera.velocity = 5 + self.jumpvel
-        self.jumpvel = 1 - self.jumpvel
-
-        if self.jumpvel < 2:
-            self.jumpvel = 0
-            self.jumpend = True
-            self.camera.move_up(False)
-            
+        else:
+            self.floor.shader["projectionMat"].write((self.windowMatrix @ self.tile.modelMatrix).transpose().astype('f4').tobytes())
         
     def on_mouse_position_event(self, x, y, dx, dy):
         if self.movelock == False:
